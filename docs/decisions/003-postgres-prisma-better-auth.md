@@ -1,0 +1,18 @@
+# PostgreSQL privé, Prisma et Better Auth
+
+Architecture validée : Next.js fullstack, connexion `DATABASE_URL`, Prisma et Better Auth.
+
+- Next.js regroupe l’interface et les Route Handlers.
+- Prisma **7.10.1** et son adaptateur `@prisma/adapter-pg` assurent l’accès à PostgreSQL. La version 7 est prise en charge par Better Auth **1.7.14** ; la version 8 disponible au moment du choix est une release candidate et n’appartient pas aux versions déclarées compatibles par son adaptateur.
+- Les modèles de données et les migrations sont dans `prisma/`. Le schéma SQL `tournio` évite d’empiéter sur les tables existantes de la base privée. Prisma suit les migrations versionnées.
+- Better Auth utilise les tables Prisma `User`, `Session`, `Account`, `Verification` et `RateLimit`. Les identifiants sont des UUID ; les sessions sont vérifiées en base, avec cookies HTTP-only et cache de session désactivé. Le proxy ne vérifie qu’un indice de présence de cookie ; pages et API contrôlent réellement la session.
+- Les comptes de démonstration sont provisionnés avec le hachage de mots de passe fourni par Better Auth. Aucun remplacement de mot de passe existant. La création de comptes par mot de passe reste fermée. Google OAuth est intégré à Better Auth et crée un compte organisateur à la première connexion. Les comptes existants ne sont reliés automatiquement que si l’adresse locale et celle fournie par Google sont vérifiées et identiques. Les jetons OAuth sont chiffrés par Better Auth.
+- Le retour Google reste sur l’hôte initial en développement grâce à une liste explicite d’hôtes locaux autorisés. La production conserve une URL fixe. Les mutations natives Better Auth vérifient aussi l’origine côté Route Handler ; les callbacks du fournisseur conservent le contrôle d’état et PKCE de Better Auth. Aucun contrôle CSRF ou OAuth n’est désactivé. Les scopes restent limités à openid/email/profile.
+- Les accès propriétaires sont vérifiés dans les requêtes et transactions serveur. La base n’est jamais accessible depuis le navigateur. Les contrats HTTP refusent `owner_id` et les identifiants de tournoi supplémentaires fournis dans les payloads enfants.
+- Les modifications verrouillent le tournoi et contrôlent `expected_version`. Les réponses de configuration sont lues dans un snapshot cohérent. Les clés étrangères composites garantissent l’appartenance des ressources et des participants d’un match à sa poule.
+- Le temps réel du prototype utilise PostgreSQL `LISTEN/NOTIFY` et un flux SSE Next.js. Les notifications contiennent seulement un identifiant ; le serveur recharge et filtre les données publiques avant diffusion. Une reconnexion force un rechargement du snapshot. Le polling reste un secours.
+- La politique TLS est explicite dans la connexion. Avec `pg` 8, `sslmode=require&uselibpqcompat=true` reproduit le mode libpq : chiffrement obligatoire, sans vérification du certificat lorsque aucune CA n’est fournie. La configuration locale utilise ce mode pour l’URL privée fournie. Pour vérifier le serveur, utiliser `verify-full` et une chaîne reconnue ; `PG_SSL_CA_FILE` fournit une CA privée et impose ce mode dans la configuration. Aucun réglage TLS global n’est désactivé.
+
+État au 1er novembre 2026 : connexion privée PostgreSQL 18.6 réussie avec TLS actif et le mode `require` fourni. Les deux migrations et le seed ont été appliqués ; les tests HTTP métier, Better Auth et SSE passent aussi sur cette base. Voir le [compte rendu](../verification-prisma.md).
+
+Références : [adaptateur Prisma de Better Auth](https://better-auth.com/docs/adapters/prisma), [intégration Next.js](https://better-auth.com/docs/integrations/next). Les versions du lockfile font autorité pour ce projet.

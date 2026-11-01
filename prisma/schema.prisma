@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas = ["tournio"]
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  email String @unique
+  emailVerified Boolean @default(false) @map("email_verified")
+  image String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions Session[]
+  accounts Account[]
+  tournaments Tournament[]
+  demoMatches DemoMatch[]
+  @@map("users")
+  @@schema("tournio")
+}
+
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  token String @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@map("sessions")
+  @@schema("tournio")
+}
+
+model Account {
+  id String @id @default(uuid()) @db.Uuid
+  accountId String @map("account_id")
+  providerId String @map("provider_id")
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken String? @map("access_token")
+  refreshToken String? @map("refresh_token")
+  idToken String? @map("id_token")
+  accessTokenExpiresAt DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope String?
+  password String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@index([userId])
+  @@unique([providerId, accountId])
+  @@map("accounts")
+  @@schema("tournio")
+}
+
+model Verification {
+  id String @id @default(uuid()) @db.Uuid
+  identifier String
+  value String
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@index([identifier])
+  @@map("verifications")
+  @@schema("tournio")
+}
+
+model RateLimit {
+  id String @id @default(uuid()) @db.Uuid
+  key String @unique
+  count Int
+  lastRequest BigInt @map("last_request")
+  @@map("rate_limits")
+  @@schema("tournio")
+}
+
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  ARCHIVED
+  @@map("tournament_status")
+  @@schema("tournio")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+  @@map("match_status")
+  @@schema("tournio")
+}
+
+model Tournament {
+  id String @id @default(uuid()) @db.Uuid
+  owner_id String @db.Uuid
+  owner User @relation(fields: [owner_id], references: [id], onDelete: Restrict)
+  name String @db.VarChar(120)
+  slug String @unique @db.VarChar(100)
+  sport String @db.VarChar(80)
+  location String @default("") @db.VarChar(240)
+  timezone String @db.VarChar(100)
+  starts_at DateTime @db.Timestamptz(3)
+  ends_at DateTime @db.Timestamptz(3)
+  status TournamentStatus @default(DRAFT)
+  published_at DateTime? @db.Timestamptz(3)
+  version Int @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  rules TournamentRules?
+  teams Team[]
+  pools Pool[]
+  pool_teams PoolTeam[]
+  courts Court[]
+  availabilities CourtAvailability[]
+  matches Match[]
+  @@index([owner_id, created_at])
+  @@index([starts_at])
+  @@index([status])
+  @@map("tournaments")
+  @@schema("tournio")
+}
+
+model TournamentRules {
+  tournament_id String @id @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  match_duration_minutes Int @default(20)
+  transition_minutes Int @default(5)
+  minimum_rest_minutes Int @default(10)
+  allow_draw Boolean @default(true)
+  points_win Int @default(3)
+  points_draw Int @default(1)
+  points_loss Int @default(0)
+  tie_break_order String[] @default(["points", "score_difference", "scores_for", "team_id"])
+  @@map("tournament_rules")
+  @@schema("tournio")
+}
+
+model Team {
+  id String @id @default(uuid()) @db.Uuid
+  tournament_id String @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  name String @db.VarChar(80)
+  slug String @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  membership PoolTeam?
+  @@unique([tournament_id, id])
+  @@unique([tournament_id, slug])
+  @@map("teams")
+  @@schema("tournio")
+}
+
+model Pool {
+  id String @id @default(uuid()) @db.Uuid
+  tournament_id String @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  name String @db.VarChar(80)
+  sort_order Int @default(0)
+  members PoolTeam[]
+  @@unique([tournament_id, id])
+  @@unique([tournament_id, name])
+  @@map("pools")
+  @@schema("tournio")
+}
+
+model PoolTeam {
+  tournament_id String @db.Uuid
+  pool_id String @db.Uuid
+  team_id String @unique @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  pool Pool @relation(fields: [tournament_id, pool_id], references: [tournament_id, id], onDelete: Cascade, onUpdate: NoAction)
+  team Team @relation(fields: [tournament_id, team_id], references: [tournament_id, id], onDelete: Cascade, onUpdate: NoAction)
+  home_matches Match[] @relation("HomeMembership")
+  away_matches Match[] @relation("AwayMembership")
+  @@id([pool_id, team_id])
+  @@unique([tournament_id, team_id])
+  @@unique([tournament_id, pool_id, team_id])
+  @@map("pool_teams")
+  @@schema("tournio")
+}
+
+model Court {
+  id String @id @default(uuid()) @db.Uuid
+  tournament_id String @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  name String @db.VarChar(80)
+  sort_order Int @default(0)
+  availabilities CourtAvailability[]
+  matches Match[]
+  @@unique([tournament_id, id])
+  @@unique([tournament_id, name])
+  @@map("courts")
+  @@schema("tournio")
+}
+
+model CourtAvailability {
+  id String @id @default(uuid()) @db.Uuid
+  tournament_id String @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  court_id String @db.Uuid
+  court Court @relation(fields: [tournament_id, court_id], references: [tournament_id, id], onDelete: Cascade, onUpdate: NoAction)
+  starts_at DateTime @db.Timestamptz(3)
+  ends_at DateTime @db.Timestamptz(3)
+  @@index([tournament_id, starts_at])
+  @@map("court_availabilities")
+  @@schema("tournio")
+}
+
+model Match {
+  id String @id @default(uuid()) @db.Uuid
+  tournament_id String @db.Uuid
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  pool_id String @db.Uuid
+  home_team_id String @db.Uuid
+  away_team_id String @db.Uuid
+  home_membership PoolTeam @relation("HomeMembership", fields: [tournament_id, pool_id, home_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
+  away_membership PoolTeam @relation("AwayMembership", fields: [tournament_id, pool_id, away_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
+  court_id String? @db.Uuid
+  court Court? @relation(fields: [tournament_id, court_id], references: [tournament_id, id], onDelete: Restrict, onUpdate: NoAction)
+  starts_at DateTime? @db.Timestamptz(3)
+  ends_at DateTime? @db.Timestamptz(3)
+  status MatchStatus @default(SCHEDULED)
+  home_score Int?
+  away_score Int?
+  result_validated_at DateTime? @db.Timestamptz(3)
+  version Int @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  @@index([tournament_id, starts_at])
+  @@index([tournament_id, status])
+  @@index([home_team_id, starts_at])
+  @@index([away_team_id, starts_at])
+  @@map("matches")
+  @@schema("tournio")
+}
+
+model DemoMatch {
+  id String @id @default(uuid()) @db.Uuid
+  owner_id String @db.Uuid
+  owner User @relation(fields: [owner_id], references: [id], onDelete: Restrict)
+  home_team String @default("Les Renards")
+  away_team String @default("Les Éclairs")
+  home_score Int @default(0)
+  away_score Int @default(0)
+  version Int @default(1)
+  published Boolean @default(true)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  @@index([owner_id])
+  @@map("demo_matches")
+  @@schema("tournio")
+}

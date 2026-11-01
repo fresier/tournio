@@ -21,7 +21,7 @@ L’application possède ses tables dans le schéma `tournio`. Les autorisations
 | E | Prévisualisation, sauvegarde sûre du calendrier et publication | TODO après D |
 | F | Pages publiques de tournoi/équipe, sélection persistante et QR | TODO après E |
 | G | Résultats métier, corrections, classements et actualisation publique | TODO après D–F |
-| H | Accessibilité visuelle, E2E navigateur, capacité et préparation de production | TODO |
+| H | Accessibilité visuelle, E2E navigateur, capacité et préparation de production | Réalisé — voir docs/deploiement.md |
 
 La configuration est limitée aux brouillons sans matchs. Cette protection devra être précisée au lot E pour permettre les ajustements manuels autorisés après publication sans écraser de résultats. Le départage reste : points, différence de scores, scores marqués, identifiant stable.
 

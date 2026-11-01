@@ -4,7 +4,7 @@ Architecture active : **Next.js fullstack, PostgreSQL privé, Prisma 7 et Better
 
 | Plan | État |
 | --- | --- |
-| [003 — PostgreSQL privé, Prisma et Better Auth](003-postgres-prisma-better-auth.md) | IN PROGRESS — migration privée et socle organisateur validés ; fonctionnalités MVP suivantes à réaliser |
+| [003 — PostgreSQL privé, Prisma et Better Auth](003-postgres-prisma-better-auth.md) | DONE — MVP réalisé et vérifié (lots A à H) ; essai sur vrai téléphone et mesure sur la production conseillés |
 
 ## Lots
 
@@ -15,11 +15,11 @@ Architecture active : **Next.js fullstack, PostgreSQL privé, Prisma 7 et Better
 | C | Connexion, dashboard et configuration avec isolation des organisateurs | DONE pour le code et les tests HTTP ; revue visuelle restante |
 | Connexion privée | Migrations sur DATABASE_URL fournie | DONE — TLS require actif, tests HTTP et SSE réussis |
 | Google | Connexion Google avant le calendrier | DONE — tests automatisés réussis ; connexion réelle sur localhost confirmée par l’utilisateur |
-| D | Moteur round-robin, planification, classements et états | TODO |
-| E | Prévisualisation, commit et publication | TODO |
-| F | Pages publiques de tournoi/équipe et QR codes | TODO |
-| G | Résultats métier et actualisation publique | TODO |
-| H | E2E navigateur, accessibilité visuelle, capacité et production | TODO |
+| D | Moteur round-robin, planification, classements et états | DONE — domaine pur `src/lib/domain/`, tests unitaires ; branchement en base et UI au lot E |
+| E | Prévisualisation, commit et publication | DONE — section Calendrier du dashboard, API `/schedule`, tests unitaires et d’intégration ; revue visuelle restante |
+| F | Pages publiques de tournoi/équipe et QR codes | DONE — `/t/[slug]`, pages équipe, API et SSE publics, onglet Partage (liens + QR) ; revue visuelle mobile restante |
+| G | Résultats métier et actualisation publique | DONE — onglet Résultats, API `/matches/:matchId`, version par match, fin de tournoi ; revue visuelle restante |
+| H | E2E navigateur, accessibilité visuelle, capacité et production | DONE — `test:e2e` (Chromium + WebKit iPhone, clavier, fuseau, stockage bloqué, réseau coupé, axe-core), `test:capacity` (1000 spectateurs), en-têtes de sécurité, `/api/health`, [déploiement](../docs/deploiement.md) |
 
 Le [compte rendu courant](../docs/verification-prisma.md) précise les vérifications réalisées et leurs limites.
 

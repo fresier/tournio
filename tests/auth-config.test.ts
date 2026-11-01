@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authBaseURL, googleProvider } from '../src/lib/auth-config';
+import { authBaseURL, googleProvider, passwordLoginEnabled } from '../src/lib/auth-config';
 
 test('Google reste désactivé tant que les deux identifiants ne sont pas présents', () => {
   assert.equal(googleProvider({}), undefined);
@@ -25,4 +25,10 @@ test('OAuth utilise une URL fixe en production et sur les domaines distants', ()
   assert.equal(authBaseURL({ BETTER_AUTH_URL: 'http://127.0.0.1:3000', NODE_ENV: 'production' }), 'http://127.0.0.1:3000');
   assert.throws(() => authBaseURL({}));
   assert.throws(() => authBaseURL({ BETTER_AUTH_URL: 'file:///tmp/auth' }));
+});
+
+test('la connexion par mot de passe est réservée aux tests isolés', () => {
+  assert.equal(passwordLoginEnabled({}), false);
+  assert.equal(passwordLoginEnabled({ TOURNIO_ISOLATED_TEST: '0' }), false);
+  assert.equal(passwordLoginEnabled({ TOURNIO_ISOLATED_TEST: '1' }), true);
 });

@@ -1,7 +1,9 @@
 import { Client } from 'pg';
 import { databaseURL } from './config';
 
-type Change = { kind: 'change'; id: string } | { kind: 'ready' | 'retry' };
+export const CHANNELS = ['tournio_demo_matches', 'tournio_tournaments'] as const;
+export type Channel = (typeof CHANNELS)[number];
+type Change = { kind: 'change'; channel: Channel; id: string } | { kind: 'ready' | 'retry' };
 type Listener = (change: Change) => void;
 
 class DatabaseEvents {
@@ -36,12 +38,13 @@ class DatabaseEvents {
       client.on('notification', (message) => {
         try {
           const value: unknown = JSON.parse(message.payload || '{}');
-          if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string' && /^[0-9a-f-]{36}$/i.test(value.id)) this.emit({ kind: 'change', id: value.id });
+          const channel = CHANNELS.find((name) => name === message.channel);
+          if (channel && value && typeof value === 'object' && 'id' in value && typeof value.id === 'string' && /^[0-9a-f-]{36}$/i.test(value.id)) this.emit({ kind: 'change', channel, id: value.id });
         } catch { /* Ignorer un message qui ne correspond pas au contrat public. */ }
       });
       try {
         await client.connect();
-        await client.query('LISTEN tournio_demo_matches');
+        for (const channel of CHANNELS) await client.query(`LISTEN ${channel}`);
         this.client = client;
         this.emit({ kind: 'ready' });
       } catch (error) {

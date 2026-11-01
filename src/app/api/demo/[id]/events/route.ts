@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const stop = await databaseEvents.subscribe((change) => {
           if (change.kind === 'ready') { readySent = true; send('ready', {}); }
           else if (change.kind === 'retry') send('retry', {});
-          else if (change.kind === 'change' && change.id === id) void publicDemoMatches(id).then((rows) => {
+          else if (change.kind === 'change' && change.channel === 'tournio_demo_matches' && change.id === id) void publicDemoMatches(id).then((rows) => {
             if (!rows[0]) { send('removed', {}); cleanup(); }
             else send('match.updated', { match: rows[0] });
           }).catch(() => send('retry', {}));

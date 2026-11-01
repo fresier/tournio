@@ -1,6 +1,7 @@
 import { getAuth } from '@/lib/auth';
 import { json, readJson, validOrigin } from '@/lib/http';
 import { loginSchema } from '@/lib/contracts';
+import { passwordLoginEnabled } from '@/lib/auth-config';
 
 export async function GET(request: Request) {
   try {
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!passwordLoginEnabled()) return json({ error: 'La connexion se fait uniquement avec Google.' }, 404);
   if (!validOrigin(request)) return json({ error: 'Origine refusée.' }, 403);
   try {
     const parsed = loginSchema.safeParse(await readJson(request));

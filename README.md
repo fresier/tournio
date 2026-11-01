@@ -29,7 +29,7 @@ Le pilote `pg` 8 interprète encore `sslmode=require` comme `verify-full` par d�
 
 ## Utilisation
 
-Ouvrir **http://localhost:3000/dashboard**. Sans session, l’application redirige vers `/login`. La première connexion Google crée un compte organisateur. La création de comptes par mot de passe est fermée. `npm run setup` prépare uniquement la configuration ; il ne génère aucun compte ni identifiant de démonstration.
+Ouvrir **http://localhost:3000/dashboard**. Sans session, l’application redirige vers `/login`. La première connexion Google crée un compte organisateur. La connexion se fait uniquement avec Google : il n’y a ni inscription ni connexion par e-mail et mot de passe. `npm run setup` prépare uniquement la configuration ; il ne génère aucun compte ni identifiant de démonstration.
 
 Le dashboard propose :
 
@@ -56,7 +56,7 @@ http://localhost:3000/api/auth/callback/google
 
 L’adresse locale retenue est `localhost`. L’URI `http://127.0.0.1:3000/api/auth/callback/google` n’est à ajouter chez Google que si cet autre hôte est utilisé pour se connecter.
 
-Renseigner `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` dans `.env.local`, puis relancer le serveur si la configuration n’a pas été rechargée. Le bouton « Continuer avec Google » est activé lorsque les deux valeurs sont présentes. Aucun secret n’est transmis à la page. Sans configuration Google, la connexion par mot de passe reste disponible.
+Renseigner `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` dans `.env.local`, puis relancer le serveur si la configuration n’a pas été rechargée. Le bouton « Continuer avec Google » est activé lorsque les deux valeurs sont présentes. Aucun secret n’est transmis à la page. Sans configuration Google, aucune connexion n’est possible. La connexion par mot de passe n’existe que dans les tests isolés (`TOURNIO_ISOLATED_TEST=1`, utilisé par `npm run test:local`).
 
 En développement, le retour OAuth utilise le même hôte que le départ : une connexion commencée sur `localhost` revient sur `localhost`, sans perdre son cookie d’état. Chaque URI utilisée doit être autorisée chez Google ; ajouter seulement une origine JavaScript ne remplace pas l’URI de redirection. En production, définir `BETTER_AUTH_URL` sur le domaine HTTPS public et autoriser `https://votre-domaine/api/auth/callback/google`.
 
@@ -64,11 +64,11 @@ La première connexion Google crée le profil local. Une adresse déjà associé
 
 ## Temps réel
 
-Sur `/demo`, le propriétaire peut modifier le score de son match de démonstration ; les autres visiteurs le consultent sans compte. Un trigger PostgreSQL émet un `NOTIFY` après la transaction. Le serveur Next.js maintient une connexion `LISTEN` et diffuse les nouvelles données publiques avec **Server-Sent Events (SSE)**.
+Les pages publiques (`/t/:slug`, pages équipe) et la démo `/demo` reçoivent les changements par **Server-Sent Events (SSE)**. Après chaque transaction, un trigger PostgreSQL émet un `NOTIFY`. Le serveur Next.js maintient une connexion `LISTEN` et signale la nouvelle version ; le navigateur recharge alors l’instantané public, qui reste la seule source de vérité.
 
-Un onglet attend la confirmation du flux, recharge le snapshot à la connexion et se replie sur un polling de 15 secondes en cas d’interruption. Le serveur rétablit sa connexion PostgreSQL automatiquement. Les flux refusent les matchs non publiés et ne diffusent ni propriétaire ni donnée d’authentification.
+En cas de coupure, le navigateur bascule sur un polling périodique et rouvre le flux. Il détecte la coupure par l’erreur du flux, par l’événement `offline`, ou par 40 s sans `ping`. Le serveur rétablit seul sa connexion PostgreSQL.
 
-Ce fonctionnement nécessite un processus Node capable de maintenir les flux HTTP et une connexion PostgreSQL de session pour `LISTEN`. L’hébergement définitif sera choisi ultérieurement. Les pages publiques des vrais tournois seront ajoutées avec le calendrier et les résultats.
+Exploitation, capacité mesurée et configuration Coolify : [docs/deploiement.md](docs/deploiement.md).
 
 ## Commandes et vérifications
 
@@ -88,7 +88,7 @@ Avec l’application locale démarrée, pour vérifier le démarrage OAuth Googl
 npm run test:google
 ```
 
-Les scénarios métier et temps réel sont lancés par `npm run test:local`. Ils vérifient les accès A/B, la concurrence, les ressources enfants, les contraintes des matchs et la réception d’un score par SSE sans polling.
+Les scénarios métier, temps réel, navigateur (`test:e2e`) et capacité (`test:capacity`) sont lancés par `npm run test:local`. La première fois, installer les navigateurs de test avec `npx playwright install chromium webkit`. Ils vérifient les accès A/B, la concurrence, les ressources enfants, les contraintes des matchs et la réception d’un score par SSE sans polling.
 
 `test:google` vérifie le bouton, l’URL d’autorisation, PKCE, l’annulation, les états falsifiés et les origines/retours interdits. Avec le serveur de développement, `npm run test:google -- --local-aliases` vérifie aussi l’autre adresse locale. Ce test respecte les limitations de débit et ne se connecte à aucun compte Google. Le consentement et la connexion complète avec un compte réel s’effectuent dans le navigateur.
 
@@ -98,12 +98,30 @@ Pour tout vérifier sur un PostgreSQL Docker jetable, **sans toucher à la base 
 npm run test:local
 ```
 
-Ce scénario crée une base et des secrets temporaires, applique deux fois les migrations et `test:seed`, compile la production, lance Next.js sur `127.0.0.1:3100`, puis exécute les contrôles métier, OAuth et temps réel. Les comptes `TEST_OWNER_*` et `TEST_OTHER_*` existent seulement dans cet environnement ; leurs mots de passe ne sont pas écrits dans `.env.local`. `test:seed` et les tests utilisant ces comptes refusent toute base autre que le PostgreSQL local `tournio_test` marqué comme isolé. Les identifiants Google y sont fictifs et aucun appel au fournisseur n’est effectué. Il interrompt aussi le canal PostgreSQL du test pour vérifier la reconnexion. Serveur et conteneur de test sont arrêtés à la fin.
+Ce scénario crée une base et des secrets temporaires, applique deux fois les migrations et `test:seed`, compile la production, lance Next.js sur `127.0.0.1:3100`, puis exécute les contrôles métier, OAuth, temps réel, le parcours navigateur et la mesure de capacité. Les comptes `TEST_OWNER_*` et `TEST_OTHER_*` existent seulement dans cet environnement ; leurs mots de passe ne sont pas écrits dans `.env.local`. `test:seed` et les tests utilisant ces comptes refusent toute base autre que le PostgreSQL local `tournio_test` marqué comme isolé. Les identifiants Google y sont fictifs et aucun appel au fournisseur n’est effectué. Il interrompt aussi le canal PostgreSQL du test pour vérifier la reconnexion. Serveur et conteneur de test sont arrêtés à la fin.
 
 ## État et limites
 
-Le modèle Prisma inclut déjà les matchs et leurs contraintes, mais la génération du calendrier, la publication, les pages publiques des tournois et la saisie des résultats métier restent à développer. L’interface permet de préparer le tournoi ; elle ne présente pas ces fonctions futures comme disponibles.
+L’interface utilise **Mantine 9** (thème dans `src/lib/theme.ts`). Le MVP est fonctionnel :
+- configuration du tournoi, avec un thème clair ou sombre et des couleurs propres à chaque tournoi (onglet Apparence), repris par le dashboard du tournoi ;
+- génération et publication du calendrier ;
+- phase de classement au choix après les poules (un match par rang, croisé en deux tours, tableau complet), classement final ;
+- écran TV 1080p pour la salle (`/t/:slug/tv`) ;
+- pages publiques avec QR codes ;
+- saisie des résultats et classements en direct.
 
-Prisma 7.10.1 est verrouillé car l’adaptateur Better Auth 1.7.14 prend en charge cette version. Prisma est l’unique système actif de migrations. Les contraintes et triggers non exprimables dans le schéma Prisma sont dans la seconde migration SQL.
+Le parcours complet du pilote 12 équipes / 3 poules / 3 terrains est vérifié dans de vrais navigateurs. Chromium sert à l’organisateur, au bureau et sur téléphone. WebKit sert au spectateur iPhone, dans un autre fuseau, sans stockage local et avec une perte puis une reprise du réseau. Le parcours couvre aussi :
+- le clavier ;
+- l’accessibilité (axe-core, WCAG 2.1 AA : aucune violation grave) ;
+- l’absence de défilement horizontal ;
+- l’absence d’erreur console ou d’hydratation.
 
-Aucun navigateur pilotable n’est disponible dans cette session : la vérification HTTP/SDK est automatisée, la revue visuelle du dashboard reste à effectuer. Voir [docs/api/organisation.md](docs/api/organisation.md) pour les contrats HTTP et [docs/decisions/003-postgres-prisma-better-auth.md](docs/decisions/003-postgres-prisma-better-auth.md) pour les choix techniques.
+Prisma 7.10.1 est verrouillé car l’adaptateur Better Auth 1.7.14 prend en charge cette version. Prisma est l’unique système actif de migrations. Les contraintes et triggers non exprimables dans le schéma Prisma sont dans les migrations SQL.
+
+Limites connues :
+- la connexion Google réelle se vérifie à la main ;
+- la capacité est mesurée en local, pas sur le serveur de production ;
+- une seule instance est validée ;
+- les notifications push sont reportées.
+
+Voir [docs/api/organisation.md](docs/api/organisation.md) pour les contrats HTTP et [docs/decisions/003-postgres-prisma-better-auth.md](docs/decisions/003-postgres-prisma-better-auth.md) pour les choix techniques.

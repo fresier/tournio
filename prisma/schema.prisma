@@ -115,6 +115,9 @@ model Tournament {
   ends_at DateTime @db.Timestamptz(3)
   status TournamentStatus @default(DRAFT)
   published_at DateTime? @db.Timestamptz(3)
+  theme String @default("tournio") @db.VarChar(20)
+  primary_color String? @db.VarChar(7)
+  accent_color String? @db.VarChar(7)
   version Int @default(1)
   created_at DateTime @default(now()) @db.Timestamptz(3)
   updated_at DateTime @updatedAt @db.Timestamptz(3)
@@ -139,10 +142,13 @@ model TournamentRules {
   transition_minutes Int @default(5)
   minimum_rest_minutes Int @default(10)
   allow_draw Boolean @default(true)
+  aligned_slots Boolean @default(false)
   points_win Int @default(3)
   points_draw Int @default(1)
   points_loss Int @default(0)
   tie_break_order String[] @default(["points", "score_difference", "scores_for", "team_id"])
+  final_format String @default("none") @db.VarChar(10)
+  round_break_minutes Int @default(0)
   @@map("tournament_rules")
   @@schema("tournio")
 }
@@ -222,11 +228,11 @@ model Match {
   id String @id @default(uuid()) @db.Uuid
   tournament_id String @db.Uuid
   tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
-  pool_id String @db.Uuid
+  pool_id String? @db.Uuid
   home_team_id String @db.Uuid
   away_team_id String @db.Uuid
-  home_membership PoolTeam @relation("HomeMembership", fields: [tournament_id, pool_id, home_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
-  away_membership PoolTeam @relation("AwayMembership", fields: [tournament_id, pool_id, away_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
+  home_membership PoolTeam? @relation("HomeMembership", fields: [tournament_id, pool_id, home_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
+  away_membership PoolTeam? @relation("AwayMembership", fields: [tournament_id, pool_id, away_team_id], references: [tournament_id, pool_id, team_id], onDelete: Restrict, onUpdate: NoAction)
   court_id String? @db.Uuid
   court Court? @relation(fields: [tournament_id, court_id], references: [tournament_id, id], onDelete: Restrict, onUpdate: NoAction)
   starts_at DateTime? @db.Timestamptz(3)
@@ -235,6 +241,12 @@ model Match {
   home_score Int?
   away_score Int?
   result_validated_at DateTime? @db.Timestamptz(3)
+  /// POOL ou FINAL (phase de classement). Contraintes de cohérence et clés vers teams dans la migration SQL.
+  phase String @default("POOL") @db.VarChar(5)
+  final_round Int?
+  place_from Int?
+  place_to Int?
+  slot Int?
   version Int @default(1)
   created_at DateTime @default(now()) @db.Timestamptz(3)
   updated_at DateTime @updatedAt @db.Timestamptz(3)

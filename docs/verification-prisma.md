@@ -73,9 +73,18 @@ Contrôle final en lecture seule : aucun utilisateur ni session des deux anciens
 
 Les 12 tests unitaires, le lint, TypeScript et le scénario complet `test:local` passent après cette séparation. Le seed de test reste idempotent ; les tests métier, OAuth et temps réel avec reconnexion restent fonctionnels.
 
+## Vérification navigateur et capacité (lot H)
+
+Le 1er novembre 2026, `npm run test:local` a réussi, avec `test:e2e` (Playwright 1.64.1, axe-core 4.14.0) et `test:capacity`.
+
+Le parcours navigateur a révélé et fait corriger deux défauts :
+- le message « Résultat enregistré » disparaissait avec le match sorti du filtre « À saisir » ;
+- une perte de réseau sur iPhone laissait le badge « En direct » affiché alors que plus rien n’arrivait.
+
+Les mesures de capacité figurent dans [deploiement.md](deploiement.md).
+
 ## Limites
 
-Aucun navigateur pilotable n’est disponible : inventaire vide lors de cette session. Le rendu et les actions HTTP sont vérifiés, la présentation visuelle mobile/desktop et les interactions réelles des formulaires restent à vérifier manuellement.
-
-Le moteur de calendrier, la publication, les pages publiques de tournoi et les résultats sportifs ne sont pas encore réalisés. Le temps réel vérifié concerne le match de démonstration.
-
+- La connexion Google complète avec un compte réel reste une vérification manuelle.
+- Les mesures de capacité sont locales ; elles sont à confirmer sur l’hébergement de production.
+- Les navigateurs de test sont des moteurs émulés (WebKit pour Safari iOS) : un essai sur un vrai téléphone reste conseillé avant le premier tournoi.

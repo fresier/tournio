@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button, Text } from '@mantine/core';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -15,5 +16,5 @@ export function LogoutButton() {
     } catch { setError('Déconnexion impossible. Réessayez.'); }
     finally { setBusy(false); }
   }
-  return <><button type="button" className="text-button" onClick={logout} disabled={busy}>Se déconnecter</button>{error ? <p role="alert" className="form-error">{error}</p> : null}</>;
+  return <><Button variant="subtle" size="compact-sm" px={0} onClick={logout} loading={busy}>Se déconnecter</Button>{error ? <Text role="alert" c="red.8" fz="sm">{error}</Text> : null}</>;
 }

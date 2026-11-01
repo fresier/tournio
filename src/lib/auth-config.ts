@@ -12,6 +12,11 @@ export function googleProvider(env: AuthEnvironment = process.env) {
   return { clientId, clientSecret, prompt: 'select_account' as const, includeGrantedScopes: false };
 }
 
+/** Connexion par mot de passe : réservée aux tests isolés (conteneur jetable). En usage réel, seul Google est proposé. */
+export function passwordLoginEnabled(env: Record<string, string | undefined> = process.env) {
+  return env.TOURNIO_ISOLATED_TEST === '1';
+}
+
 export function authBaseURL(env: AuthEnvironment = process.env) {
   const configured = env.BETTER_AUTH_URL;
   if (!configured) throw new Error('BETTER_AUTH_URL est requise.');

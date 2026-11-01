@@ -1,6 +1,6 @@
 'use client';
 import { z } from 'zod';
-import { configurationSchema } from './contracts';
+import { configurationSchema, schedulePreviewSchema } from './contracts';
 
 export class FormError extends Error {
   constructor(message: string, public fields: Record<string, string[]> = {}) { super(message); }
@@ -14,4 +14,14 @@ export async function configurationRequest(url: string, init?: RequestInit) {
     throw new FormError(parsed.success ? parsed.data.error.message : 'Le service est momentanément indisponible.', parsed.success ? parsed.data.error.fieldErrors : {});
   }
   return z.object({ configuration: configurationSchema }).parse(body).configuration;
+}
+
+export async function schedulePreviewRequest(url: string) {
+  const response = await fetch(url, { cache: 'no-store' });
+  const body: unknown = await response.json();
+  if (!response.ok) {
+    const parsed = z.object({ error: z.object({ message: z.string() }) }).safeParse(body);
+    throw new FormError(parsed.success ? parsed.data.error.message : 'Le service est momentanément indisponible.');
+  }
+  return z.object({ preview: schedulePreviewSchema }).parse(body).preview;
 }

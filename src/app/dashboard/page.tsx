@@ -1,11 +1,26 @@
-import Link from 'next/link';
+import { Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { listTournaments } from '@/lib/tournaments/server';
 import { formatTournamentDate } from '@/lib/tournaments/dates';
+import { ButtonLink, TextLink } from '@/components/ui/links';
+import { TournamentStatus } from '@/components/ui/status';
+import { PageHeading } from '@/components/ui/page-heading';
 
-const labels = { DRAFT: 'Brouillon', PUBLISHED: 'Publié', COMPLETED: 'Terminé', ARCHIVED: 'Archivé' };
 export default async function DashboardPage() {
   const tournaments = await listTournaments();
-  return <><header className="page-heading"><div><h1>Mes tournois</h1><p>Préparez les équipes, les terrains et les règles de vos événements.</p></div><Link className="button-link" href="/dashboard/tournaments/new">Créer un tournoi</Link></header>
-    {tournaments.length ? <div className="tournament-list">{tournaments.map((tournament) => <article className="panel tournament-row" key={tournament.id}><div><div className="row-heading"><h2><Link href={`/dashboard/tournaments/${tournament.id}`}>{tournament.name}</Link></h2><span className="status-chip">{labels[tournament.status]}</span></div><p>{tournament.sport}{tournament.location ? ` · ${tournament.location}` : ''}</p><p className="hint">{formatTournamentDate(tournament.starts_at, tournament.timezone)} — {tournament.timezone}</p></div><div className="tournament-counts"><span><strong>{tournament.team_count}</strong> équipes</span><span><strong>{tournament.pool_count}</strong> poules</span><span><strong>{tournament.court_count}</strong> terrains</span></div><Link className="row-link" href={`/dashboard/tournaments/${tournament.id}`}>Configurer<span className="sr-only"> {tournament.name}</span></Link></article>)}</div> : <section className="panel empty-state"><h2>Votre premier tournoi commence ici.</h2><p>Créez un brouillon, puis ajoutez vos équipes, vos poules et vos terrains.</p><Link href="/dashboard/tournaments/new" className="button-link">Créer mon premier tournoi</Link></section>}
+  return <>
+    <PageHeading title="Mes tournois" description="Préparez les équipes, les terrains et les règles de vos événements." action={<ButtonLink href="/dashboard/tournaments/new">Créer un tournoi</ButtonLink>} />
+    {tournaments.length ? <Stack gap="md">{tournaments.map((tournament) => <Card key={tournament.id} component="article">
+      <Group justify="space-between" align="flex-start" gap="lg">
+        <Stack gap={4} style={{ minWidth: 0, flex: '1 1 260px' }}>
+          <Group gap="sm"><Title order={2} fz="xl"><TextLink href={`/dashboard/tournaments/${tournament.id}`} underline="hover" c="ink.8">{tournament.name}</TextLink></Title><TournamentStatus status={tournament.status} /></Group>
+          <Text>{tournament.sport}{tournament.location ? ` · ${tournament.location}` : ''}</Text>
+          <Text fz="sm" c="dimmed">{formatTournamentDate(tournament.starts_at, tournament.timezone)} — {tournament.timezone}</Text>
+        </Stack>
+        <SimpleGrid cols={3} spacing="lg">
+          {[[tournament.team_count, 'équipes'], [tournament.pool_count, 'poules'], [tournament.court_count, 'terrains']].map(([count, label]) => <Stack key={label} gap={0} align="center"><Text fw={800} fz="xl">{count}</Text><Text fz="xs" c="dimmed">{label}</Text></Stack>)}
+        </SimpleGrid>
+        <ButtonLink href={`/dashboard/tournaments/${tournament.id}`} variant="light" size="sm">Configurer<span className="sr-only"> {tournament.name}</span></ButtonLink>
+      </Group>
+    </Card>)}</Stack> : <Card p="xl"><Title order={2} fz="xl" mb="xs">Votre premier tournoi commence ici.</Title><Text c="dimmed" mb="md">Créez un brouillon, puis ajoutez vos équipes, vos poules et vos terrains.</Text><ButtonLink href="/dashboard/tournaments/new">Créer mon premier tournoi</ButtonLink></Card>}
   </>;
 }

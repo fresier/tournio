@@ -26,3 +26,12 @@ test('toute commande doit préciser une version valide et un payload strict', ()
   assert(!configurationCommandSchema.safeParse({operation:'create_team',payload:{name:'Les Renards',slug:'les-renards'}}).success);
   assert(!configurationCommandSchema.safeParse({operation:'create_team',expected_version:1,payload:{name:'Les Renards',slug:'les-renards',tournament_id:crypto.randomUUID()}}).success);
 });
+test('les dates affichées sont identiques côté serveur et navigateur', async () => {
+  const { formatTournamentDate, formatMatchTime, spansSeveralDays } = await import('../src/lib/tournaments/dates');
+  assert.equal(formatTournamentDate('2026-11-01T17:00:00Z', 'Europe/Brussels'), '1 nov. 2026 à 18:00');
+  assert.equal(formatTournamentDate('2026-07-14T07:05:00Z', 'Europe/Brussels'), '14 juil. 2026 à 09:05');
+  assert.equal(formatMatchTime('2026-11-14T08:00:00Z', 'Europe/Brussels'), '09:00');
+  assert.equal(formatMatchTime('2026-11-15T08:00:00Z', 'Europe/Brussels', true), 'dim. 15 · 09:00');
+  assert.equal(spansSeveralDays('2026-11-14T08:00:00Z', '2026-11-14T22:30:00Z', 'Europe/Brussels'), false);
+  assert.equal(spansSeveralDays('2026-11-14T08:00:00Z', '2026-11-14T23:30:00Z', 'Europe/Brussels'), true);
+});

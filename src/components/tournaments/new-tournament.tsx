@@ -1,6 +1,7 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { TournamentFields, tournamentFields } from './tournament-fields';
 import { FormFeedback } from '@/components/forms/field';
 import { configurationRequest, FormError } from '@/lib/tournaments/client';
@@ -28,10 +29,13 @@ export function NewTournament() {
     } catch (error) { setError(error instanceof FormError ? error : new FormError('Impossible de créer le tournoi. Réessayez.')); }
     finally { setBusy(false); }
   }
-  return <form className="panel configuration-form" onSubmit={submit}>
-    <fieldset disabled={busy}><legend className="sr-only">Informations du nouveau tournoi</legend>
-      <TournamentFields fields={error?.fields} slug={slug} onSlugChange={(value) => { setCustomSlug(true); setSlug(value); }} onNameChange={(value) => { if (!customSlug) setSlug(slugify(value)); }} />
-      <FormFeedback error={error} /><div className="form-actions"><button type="submit">{busy ? 'Création en cours…' : 'Créer le tournoi en brouillon'}</button><span className="hint">Visible uniquement par vous avant publication.</span></div>
+  return <Card component="form" onSubmit={submit} maw={860}>
+    <fieldset disabled={busy} className="bare-fieldset"><legend className="sr-only">Informations du nouveau tournoi</legend>
+      <Stack>
+        <TournamentFields fields={error?.fields} slug={slug} onSlugChange={(value) => { setCustomSlug(true); setSlug(value); }} onNameChange={(value) => { if (!customSlug) setSlug(slugify(value)); }} />
+        <FormFeedback error={error} />
+        <Group><Button type="submit" loading={busy}>Créer le tournoi en brouillon</Button><Text fz="sm" c="dimmed">Visible uniquement par vous avant publication.</Text></Group>
+      </Stack>
     </fieldset>
-  </form>;
+  </Card>;
 }

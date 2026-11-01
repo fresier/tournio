@@ -13,7 +13,7 @@ export function googleProvider(env: AuthEnvironment = process.env) {
 }
 
 export function authBaseURL(env: AuthEnvironment = process.env) {
-  const configured = env.BETTER_AUTH_URL || env.APP_ORIGIN;
+  const configured = env.BETTER_AUTH_URL;
   if (!configured) throw new Error('BETTER_AUTH_URL est requise.');
   const url = new URL(configured);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('BETTER_AUTH_URL doit utiliser HTTP ou HTTPS.');

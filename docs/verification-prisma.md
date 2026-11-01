@@ -6,7 +6,7 @@ Mis à jour le 1er novembre 2026. Périmètre : PostgreSQL privé / Prisma 7.10.
 
 - Schéma Prisma valide et génération du client réussie.
 - Lint sans avertissement, TypeScript et build de production réussis.
-- Onze tests unitaires : dates/fuseaux, heure inexistante, heure ambiguë avec décalage explicite, validation stricte des mutations, configuration de connexion, contrôle des origines et configuration Google/base URL en développement/production.
+- Douze tests unitaires : dates/fuseaux, heure inexistante, heure ambiguë avec décalage explicite, validation stricte des mutations, configuration de connexion, contrôle des origines, configuration Google et protection des comptes de test sur une base privée.
 - Migrations appliquées à une base PostgreSQL 17 Docker jetable ; seconde application sans changement.
 - Seed relancé : mêmes comptes, même match et même tournoi ; 12 équipes, 3 poules, 3 terrains et 12 affectations.
 - Connexion Better Auth avec cookies HTTP-only, accès dashboard et formulaires rendus en HTTP.
@@ -49,7 +49,7 @@ Intégré le 1er novembre 2026 avec le fournisseur natif Better Auth, sans nouve
 - Les deux variables Google ont été détectées dans `.env.local`, sans affichage de leurs valeurs.
 - `npm run test:google -- --local-aliases` réussit contre le serveur de développement et la base privée : bouton actif, URL Google avec le bon hôte de retour, PKCE S256, annulation, état falsifié, origine étrangère et URL de retour étrangère. Le test respecte la limitation de débit native.
 - `npm run test:local` réussit aussi après l’ajout Google : migrations/seed idempotents, build de production, parcours organisateur, OAuth et temps réel avec reconnexion. Les identifiants Google y sont fictifs ; ce scénario ne contacte pas Google.
-- Un contrôle distant sans session Google a atteint la page de connexion Google avec le client réel et l’URI `http://localhost:3000/api/auth/callback/google`. L’utilisateur a choisi de conserver uniquement `localhost` pour OAuth : `BETTER_AUTH_URL`, `APP_ORIGIN` et les valeurs locales par défaut sont alignées sur `http://localhost:3000`. Le retour `127.0.0.1`, refusé par Google lors du contrôle, ne nécessite donc aucune configuration supplémentaire.
+- Un contrôle distant sans session Google a atteint la page de connexion Google avec le client réel et l’URI `http://localhost:3000/api/auth/callback/google`. L’utilisateur a choisi de conserver uniquement `localhost` pour OAuth : `BETTER_AUTH_URL` et les valeurs locales par défaut sont alignées sur `http://localhost:3000`. Le retour `127.0.0.1`, refusé par Google lors du contrôle, ne nécessite donc aucune configuration supplémentaire.
 
 Le 1er novembre 2026, l’utilisateur a confirmé que la connexion Google complète fonctionne sur `localhost`. Cette validation manuelle complète les contrôles automatisés du démarrage OAuth. La liaison à un compte local préexistant n’a pas été testée séparément avec un compte réel. La configuration autorise la création d’un organisateur à la première connexion ; elle conserve les règles de vérification d’adresse avant une liaison implicite.
 
@@ -62,6 +62,16 @@ Aucun conteneur, volume ni réseau de l’ancien projet Docker ne reste. Les 11 
 Contrôles après nettoyage : lint, TypeScript, 11 tests unitaires et scénario `test:local` réussis. Ce dernier revalide migrations/seed, build de production, parcours organisateur, démarrage OAuth et temps réel avec reconnexion sur une base jetable. L’analyse des imports n’a détecté aucun fichier source inutilisé.
 
 Le build temporaire `.next-test` a été retiré après génération du build final ; TypeScript reste valide. Un serveur de production temporaire utilisant la configuration locale actuelle a répondu 200 sur `/`, `/login` et `/api/auth`, sans ancien message d’infrastructure. Ce serveur de vérification a ensuite été arrêté.
+
+## Comptes de démonstration
+
+Le 1er novembre 2026, les deux utilisateurs correspondant à `DEMO_OWNER_EMAIL` et `DEMO_OTHER_EMAIL` ont été supprimés de la base privée à la demande de l’utilisateur, avec leurs deux identifiants par mot de passe et leurs quatre sessions. Leur tournoi de démonstration et leur match ont été transférés transactionnellement à l’unique compte Google existant. Les identifiants du tournoi et du match, les scores et les ressources enfants sont conservés ; le compte Google est préservé.
+
+Les quatre variables de démonstration ont été retirées de `.env.local` et du fichier d’exemple. Le setup ne les génère plus. L’ancien seed courant est remplacé par `test:seed`, réservé au PostgreSQL local `tournio_test` marqué comme isolé. Les scénarios métier et temps réel appliquent la même restriction. Leurs comptes `TEST_OWNER_*` et `TEST_OTHER_*` sont générés uniquement dans l’environnement du conteneur jetable. La démonstration publique utilise désormais la page de connexion commune.
+
+Contrôle final en lecture seule : aucun utilisateur ni session des deux anciens comptes, un compte Google conservé, tournoi avec 12 équipes / 3 poules / 3 terrains / 12 affectations et score du match inchangé. Le setup a été relancé sans recréer les variables supprimées ; l’exécution de `test:seed` avec la configuration privée est refusée avant connexion à la base.
+
+Les 12 tests unitaires, le lint, TypeScript et le scénario complet `test:local` passent après cette séparation. Le seed de test reste idempotent ; les tests métier, OAuth et temps réel avec reconnexion restent fonctionnels.
 
 ## Limites
 

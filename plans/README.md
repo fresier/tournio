@@ -11,9 +11,9 @@ Architecture active : **Next.js fullstack, PostgreSQL privé, Prisma 7 et Better
 | Lot | Contenu | État |
 | --- | --- | --- |
 | A | Architecture Prisma/Better Auth, prototype SSE | DONE sur PostgreSQL isolé et privé |
-| B | Modèle, contraintes, migrations et seed 12/3/3 | DONE sur PostgreSQL isolé et privé |
+| B | Modèle, contraintes, migrations et fixtures 12/3/3 | DONE — modèle privé et fixtures en tests isolés |
 | C | Connexion, dashboard et configuration avec isolation des organisateurs | DONE pour le code et les tests HTTP ; revue visuelle restante |
-| Connexion privée | Migration et seed sur DATABASE_URL fournie | DONE — TLS require actif, tests HTTP et SSE réussis |
+| Connexion privée | Migrations sur DATABASE_URL fournie | DONE — TLS require actif, tests HTTP et SSE réussis |
 | Google | Connexion Google avant le calendrier | DONE — tests automatisés réussis ; connexion réelle sur localhost confirmée par l’utilisateur |
 | D | Moteur round-robin, planification, classements et états | TODO |
 | E | Prévisualisation, commit et publication | TODO |

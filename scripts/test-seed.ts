@@ -1,14 +1,16 @@
 import './load-env.mjs';
 import { hashPassword } from 'better-auth/crypto';
 import { getPrisma } from '../src/lib/database/client';
+import { assertIsolatedTestDatabase } from './test-database';
 
+assertIsolatedTestDatabase();
 const db = getPrisma();
 try {
   const users = [];
-  for (const [prefix, name] of [['DEMO_OWNER', 'Organisateur de démonstration'], ['DEMO_OTHER', 'Autre organisateur']]) {
+  for (const [prefix, name] of [['TEST_OWNER', 'Organisateur de test A'], ['TEST_OTHER', 'Organisateur de test B']]) {
     const email = process.env[`${prefix}_EMAIL`];
     const password = process.env[`${prefix}_PASSWORD`];
-    if (!email || !password) throw new Error('Exécuter npm run setup pour générer les identifiants locaux.');
+    if (!email || !password) throw new Error('Les identifiants de test sont fournis par npm run test:local.');
     let user = await db.user.findUnique({ where: { email } });
     if (!user) {
       const hashed = await hashPassword(password);
@@ -36,17 +38,17 @@ try {
     }
     return created;
   }, { timeout: 60000 });
-  const origin = process.env.APP_ORIGIN || 'http://127.0.0.1:3000';
-  console.log('Comptes, match et tournoi de démonstration prêts ; données existantes conservées.');
+  const origin = process.env.BETTER_AUTH_URL || 'http://localhost:3000';
+  console.log('Fixtures prêtes sur la base jetable ; données existantes conservées.');
   console.log(`Organisation : ${origin}/dashboard/tournaments/${tournament.id}`);
-  console.log(`Match public : ${origin}/?match=${demo.id}`);
-  console.log('Identifiants conservés dans .env.local, aucun mot de passe affiché.');
+  console.log(`Match public : ${origin}/demo?match=${demo.id}`);
+  console.log('Identifiants transmis dans l’environnement du test, aucun mot de passe affiché.');
 } catch (error) {
   const problem = error as { name?: string; code?: string; errorCode?: string; meta?: { modelName?: string; table?: string }; message?: string };
   console.error('Seed impossible :', JSON.stringify({ name: problem.name, code: problem.code || problem.errorCode, model: problem.meta?.modelName, table: problem.meta?.table }));
   if (!problem.code && !problem.errorCode) {
     let message = problem.message || '';
-    for (const key of ['DATABASE_URL','BETTER_AUTH_SECRET','DEMO_OWNER_PASSWORD','DEMO_OTHER_PASSWORD']) if (process.env[key]) message = message.split(process.env[key]!).join('[REDACTED]');
+    for (const key of ['DATABASE_URL','BETTER_AUTH_SECRET','TEST_OWNER_PASSWORD','TEST_OTHER_PASSWORD']) if (process.env[key]) message = message.split(process.env[key]!).join('[REDACTED]');
     console.error(message.split('\n').find((line) => line.trim())?.slice(0, 300) || 'Vérifier connexion et migrations.');
   }
   process.exitCode = 1;

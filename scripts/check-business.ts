@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { getPrisma } from '../src/lib/database/client';
 import { configurationSchema } from '../src/lib/tournaments/contracts';
 import { request, login } from './test-http';
+import { assertIsolatedTestDatabase } from './test-database';
 
+assertIsolatedTestDatabase();
 const db = getPrisma();
 const fixtures: string[] = [];
 const input = (slug: string) => ({ name:'Tournoi de vérification', slug, sport:'Multisport', location:'Bruxelles', timezone:'Europe/Brussels', starts_at:'2026-11-14T08:00:00Z', ends_at:'2026-11-14T17:00:00Z' });
@@ -11,8 +13,8 @@ try {
   const anonymous = await request('/dashboard', { redirect: 'manual' });
   assert([303,307].includes(anonymous.status)); assert(anonymous.headers.get('location')?.includes('/login'));
   assert.equal((await request('/api/v1/admin/tournaments')).status,401);
-  const owner = await login('DEMO_OWNER');
-  const other = await login('DEMO_OTHER');
+  const owner = await login('TEST_OWNER');
+  const other = await login('TEST_OTHER');
   const dashboard = await request('/dashboard', { cookie: owner });
   assert.equal(dashboard.status,200); assert((await dashboard.text()).includes('Tournoi de démonstration'));
   assert.equal((await request('/dashboard/tournaments/new', { cookie: owner })).status,200);
@@ -84,7 +86,7 @@ try {
   await mutate('delete_court',{id:court.id}); assert.equal(data.availabilities.length,0);
   await mutate('delete_pool',{id:pool.id}); assert.equal(data.pool_teams.length,0);
   await mutate('delete_team',{id:teamA.id}); assert.equal(data.teams.length,2);
-  const demoUser=await db.user.findUniqueOrThrow({where:{email:process.env.DEMO_OWNER_EMAIL!}});
+  const demoUser=await db.user.findUniqueOrThrow({where:{email:process.env.TEST_OWNER_EMAIL!}});
   const demo=await db.tournament.findFirstOrThrow({where:{owner_id:demoUser.id,slug:`demo-${demoUser.id.replaceAll('-','').slice(0,12)}`},include:{_count:{select:{teams:true,pools:true,courts:true,pool_teams:true}}}});
   assert.deepEqual(demo._count,{teams:12,pools:3,courts:3,pool_teams:12});
   console.log('OK — Intégrité des matchs, suppressions cohérentes et seed 12 équipes / 3 poules / 3 terrains.');

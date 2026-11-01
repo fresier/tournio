@@ -2,15 +2,17 @@ import './load-env.mjs';
 import assert from 'node:assert/strict';
 import { getPrisma } from '../src/lib/database/client';
 import { request, login, origin } from './test-http';
+import { assertIsolatedTestDatabase } from './test-database';
 
+assertIsolatedTestDatabase();
 const db = getPrisma();
 const fixtures: string[] = [];
 const streamController = new AbortController();
 let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
 try {
-  const owner = await login('DEMO_OWNER');
-  const other = await login('DEMO_OTHER');
+  const owner = await login('TEST_OWNER');
+  const other = await login('TEST_OTHER');
   assert.equal((await request('/api/demo', { method: 'POST' })).status, 401);
   const created = await request('/api/demo', { method: 'POST', cookie: owner });
   assert.equal(created.status, 201);

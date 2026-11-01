@@ -13,9 +13,9 @@ L’application possède ses tables dans le schéma `tournio`. Les autorisations
 | Lot | Livrable | État |
 | --- | --- | --- |
 | A | Architecture Prisma, Better Auth et SSE | Réalisé et vérifié sur PostgreSQL isolé et privé |
-| B | Modèle complet, contraintes, migrations et seed 12 équipes / 3 poules / 3 terrains | Réalisé et appliqué sur PostgreSQL privé |
+| B | Modèle complet, contraintes, migrations et fixtures 12 équipes / 3 poules / 3 terrains | Migrations appliquées ; fixtures réservées aux tests isolés |
 | C | Dashboard, connexion, CRUD et affectations manuelles avec isolation propriétaire | Réalisé ; tests HTTP réussis, revue visuelle à effectuer |
-| Connexion privée | Appliquer les migrations/seed à `DATABASE_URL` | Réalisé ; TLS actif en mode require, tests métier et SSE réussis |
+| Connexion privée | Appliquer les migrations à `DATABASE_URL` | Réalisé ; TLS actif en mode require, tests métier et SSE réussis |
 | Google | Connexion Google avant le moteur de calendrier | Réalisé ; tests automatisés réussis et connexion réelle sur localhost confirmée par l’utilisateur |
 | D | Domaine pur : rencontres, contraintes, classements et états | TODO |
 | E | Prévisualisation, sauvegarde sûre du calendrier et publication | TODO après D |
@@ -28,9 +28,9 @@ La configuration est limitée aux brouillons sans matchs. Cette protection devra
 ## Vérifications présentes
 
 - `npm run db:validate`, `npm run db:generate`, `npm run db:migrate` et `npm run db:status`.
-- `npm run db:seed`, idempotent et sans remplacement des identifiants existants.
+- `npm run test:seed`, idempotent et réservé au PostgreSQL jetable du scénario `test:local`.
 - `npm run lint`, `npm run typecheck`, `npm run test:unit`, `npm run build`.
-- `npm run test:integration` et `npm run test:realtime` contre l’application locale.
+- `npm run test:integration` et `npm run test:realtime` dans l’environnement isolé ; `npm run test:google` contre l’application locale.
 - `npm run test:local` : PostgreSQL Docker jetable, migrations/seed relancés, build de production, API métier et vrai flux SSE, avec interruption et reconnexion du canal PostgreSQL. La base privée n’est pas utilisée pour ce scénario.
 
 ## Détails des prochains lots
@@ -47,6 +47,6 @@ Ces points conservent les exigences utiles du cadrage initial sans dépendre de 
 
 La connexion utilise l’URL fournie avec `sslmode=require`, complétée localement par `uselibpqcompat=true` pour retrouver la sémantique libpq dans `pg` 8. TLS est obligatoire ; sans CA, le certificat et l’identité du serveur ne sont pas vérifiés. Pour demander aussi cette vérification, fournir une chaîne reconnue ou une CA privée via `PG_SSL_CA_FILE`.
 
-Le schéma `tournio` a été contrôlé vide avant application des deux migrations. Le seed et les tests métier/temps réel ont réussi sur cette base le 1er novembre 2026. Pour les évolutions suivantes : `npm run db:migrate`, puis si nécessaire `npm run db:seed` ; ne pas utiliser `migrate reset` ou `db push`. Si des tables non suivies par Prisma existent dans le schéma, examiner leur compatibilité avant migration. Voir le [compte rendu](../docs/verification-prisma.md) pour les preuves et limites.
+Le schéma `tournio` a été contrôlé vide avant application des deux migrations. Le pilote et les tests métier/temps réel ont réussi sur cette base le 1er novembre 2026. Les comptes du pilote ont ensuite été retirés de l’utilisation courante ; les fixtures sont désormais réservées aux tests isolés. Pour les évolutions suivantes : `npm run db:migrate` ; ne pas utiliser `migrate reset` ou `db push`. Si des tables non suivies par Prisma existent dans le schéma, examiner leur compatibilité avant migration. Voir le [compte rendu](../docs/verification-prisma.md) pour les preuves et limites.
 
 Les fonctions hors MVP restent exclues. Les prochaines fonctionnalités doivent conserver les vérifications propriétaire sur chaque ressource enfant, les versions optimistes et les transactions de calendrier/résultat.

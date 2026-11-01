@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { matchSchema, type DemoMatch } from '@/lib/contracts';
+import { MatchQrCode } from '@/components/match-qr-code';
 
 type Connection = 'connecting' | 'live' | 'fallback';
 
-export function RealtimeDemo({ initialMatch, initialError }: { initialMatch: DemoMatch | null; initialError: string }) {
+export function RealtimeDemo({ initialMatch, initialError, qrOrigin }: { initialMatch: DemoMatch | null; initialError: string; qrOrigin?: string }) {
   const [match, setMatch] = useState(initialMatch);
   const [email, setEmail] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
@@ -77,20 +78,6 @@ export function RealtimeDemo({ initialMatch, initialError }: { initialMatch: Dem
     };
   }, [matchId]);
 
-  async function authenticate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setBusy(true); setMessage('');
-    try {
-      const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.get('email'), password: form.get('password') }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setEmail(data.user.email);
-      setMessage('Connexion établie. Vous pouvez modifier votre match de démonstration.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Connexion impossible.'); }
-    finally { setBusy(false); }
-  }
-
   async function createMatch() {
     setBusy(true); setMessage('');
     try {
@@ -99,7 +86,7 @@ export function RealtimeDemo({ initialMatch, initialError }: { initialMatch: Dem
       if (!response.ok) throw new Error(data.error);
       const next = matchSchema.parse(data.match);
       setMatch(next); setEvents(0); setConnection('connecting'); live.current = false;
-      window.history.replaceState(null, '', `/?match=${next.id}`);
+      window.history.replaceState(null, '', `/demo?match=${next.id}`);
       setMessage('Match créé. Ouvrez la vue publique dans un second onglet.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Création impossible.'); }
     finally { setBusy(false); }
@@ -144,7 +131,8 @@ export function RealtimeDemo({ initialMatch, initialError }: { initialMatch: Dem
           {match ? <>
             <div className="teams" aria-live="polite" aria-atomic="true"><div><h3>{match.home_team}</h3><strong aria-label={`${match.home_score} points`}>{match.home_score}</strong></div><span className="separator">:</span><div><h3>{match.away_team}</h3><strong aria-label={`${match.away_score} points`}>{match.away_score}</strong></div></div>
             <div className="board-bottom"><span aria-live="polite">{events} événement{events !== 1 ? 's' : ''} reçu{events !== 1 ? 's' : ''} dans cet onglet</span><span>Version {match.version}</span></div>
-            <a className="public-link" href={`/?match=${match.id}`} target="_blank" rel="noopener noreferrer">Ouvrir la vue dans un second onglet</a>
+            <a className="public-link" href={`/demo?match=${match.id}`} target="_blank" rel="noopener noreferrer">Ouvrir la vue dans un second onglet</a>
+            <MatchQrCode matchId={match.id} origin={qrOrigin} />
           </> : <div className="empty"><p>Aucun match chargé.</p><p>Connectez-vous pour créer un match de démonstration.</p></div>}
         </section>
         <section className="editor" aria-labelledby="editor-title">
@@ -159,9 +147,8 @@ export function RealtimeDemo({ initialMatch, initialError }: { initialMatch: Dem
             <button className="text-button" onClick={logout} disabled={busy}>Se déconnecter</button>
             <p className="hint">La modification est réservée au propriétaire du match. Créez le vôtre si celui affiché appartient à un autre compte.</p>
           </> : <>
-            <p>La consultation reste publique. Connectez-vous au compte local pour modifier son score.</p>
-            <form onSubmit={authenticate}><label>Adresse e-mail<input name="email" type="email" autoComplete="username" placeholder="organisateur@tournio.test" required /></label><label>Mot de passe<input name="password" type="password" autoComplete="current-password" required /></label><button type="submit" disabled={busy}>Se connecter</button></form>
-            <p className="hint">Les identifiants générés pour cet essai sont dans le fichier local <code>.env.local</code>.</p>
+            <p>La consultation reste publique. Connectez-vous pour créer et modifier votre match.</p>
+            <Link className="button-link" href="/login">Se connecter</Link>
           </>}
         </section>
       </div>

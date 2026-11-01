@@ -23,7 +23,7 @@ try {
   const port=output.match(/127\.0\.0\.1:(\d+)/)?.[1];
   if(!port) throw new Error('Port de la base isolée introuvable.');
   const url=`postgresql://postgres:${password}@127.0.0.1:${port}/tournio_test`;
-  const env={...process.env,DATABASE_URL:url,PG_SSL_CA_FILE:'',BETTER_AUTH_SECRET:randomBytes(48).toString('base64url'),BETTER_AUTH_URL:'http://127.0.0.1:3100',APP_ORIGIN:'http://127.0.0.1:3100',GOOGLE_CLIENT_ID:'isolated-test.apps.googleusercontent.com',GOOGLE_CLIENT_SECRET:randomBytes(24).toString('base64url'),NEXT_DIST_DIR:'.next-test',TOURNIO_ISOLATED_TEST:'1',DEMO_OWNER_EMAIL:'organisateur@tournio.test',DEMO_OWNER_PASSWORD:randomBytes(24).toString('base64url'),DEMO_OTHER_EMAIL:'autre@tournio.test',DEMO_OTHER_PASSWORD:randomBytes(24).toString('base64url')};
+  const env={...process.env,DATABASE_URL:url,PG_SSL_CA_FILE:'',BETTER_AUTH_SECRET:randomBytes(48).toString('base64url'),BETTER_AUTH_URL:'http://127.0.0.1:3100',GOOGLE_CLIENT_ID:'isolated-test.apps.googleusercontent.com',GOOGLE_CLIENT_SECRET:randomBytes(24).toString('base64url'),NEXT_DIST_DIR:'.next-test',TOURNIO_ISOLATED_TEST:'1',TEST_OWNER_EMAIL:'test-owner@tournio.test',TEST_OWNER_PASSWORD:randomBytes(24).toString('base64url'),TEST_OTHER_EMAIL:'test-other@tournio.test',TEST_OTHER_PASSWORD:randomBytes(24).toString('base64url')};
   let ready=false;
   for(let i=0;i<40;i++){
     const client=new pg.Client({connectionString:url,connectionTimeoutMillis:1000});
@@ -33,8 +33,8 @@ try {
   if(!ready)throw new Error('La base PostgreSQL isolée ne démarre pas.');
   run('npm',['run','db:migrate'],env);
   run('npm',['run','db:migrate'],env);
-  run('npm',['run','db:seed'],env);
-  run('npm',['run','db:seed'],env);
+  run('npm',['run','test:seed'],env);
+  run('npm',['run','test:seed'],env);
   run('npm',['run','build'],env);
   server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3100'],{env,stdio:['ignore','pipe','pipe']});
   server.stdout.on('data',()=>{});

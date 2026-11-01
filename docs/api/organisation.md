@@ -1,6 +1,6 @@
 # API organisateur — socle métier
 
-Toutes les réponses sont JSON et `Cache-Control: no-store`. Les lectures et mutations administratives exigent une session Better Auth valide. Les mutations exigent également une origine égale à `APP_ORIGIN`.
+Toutes les réponses sont JSON et `Cache-Control: no-store`. Les lectures et mutations administratives exigent une session Better Auth valide. Les mutations exigent également une origine égale à celle de `BETTER_AUTH_URL`.
 
 | Route | Action | Réponse |
 | --- | --- | --- |

@@ -17,7 +17,7 @@ try {
   const result = spawnSync(process.execPath, ['node_modules/prisma/build/index.js', ...args], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, env: process.env });
   const redact = (text) => {
     let output = text || '';
-    for (const key of ['DATABASE_URL','BETTER_AUTH_SECRET','DEMO_OWNER_PASSWORD','DEMO_OTHER_PASSWORD']) {
+    for (const key of ['DATABASE_URL','BETTER_AUTH_SECRET','GOOGLE_CLIENT_SECRET','TEST_OWNER_PASSWORD','TEST_OTHER_PASSWORD']) {
       const secret = process.env[key]; if (secret) output = output.split(secret).join('[REDACTED]');
     }
     return output.replace(/postgres(?:ql)?:\/\/[^\s"']+/g, '[DATABASE_URL REDACTED]');

@@ -64,6 +64,9 @@ export async function configureTournamentForUser(userId: string, id: string, com
     } else if (command.operation === 'set_final_format') {
       if (current.status !== 'DRAFT' && current.status !== 'PUBLISHED') throw new DomainError('TOURNAMENT_LOCKED', 'Le format ne peut plus être modifié : le tournoi est terminé.', 409);
       if (await tx.match.count({ where: { tournament_id: id, phase: 'FINAL' } })) throw new DomainError('PLACEMENT_STARTED', 'La phase de classement a commencé : annulez ses tours pour changer de format.', 409);
+    } else if (command.operation === 'update_pool' || command.operation === 'update_court' || (command.operation === 'update_team' && await tx.team.count({ where: { id: command.payload.id, tournament_id: id, slug: command.payload.slug } }))) {
+      // Renommer une équipe, une poule ou un terrain ne change que l’affichage (ni matchs, ni lien) : permis jusqu’à l’archivage.
+      if (current.status === 'ARCHIVED') throw new DomainError('TOURNAMENT_LOCKED', 'Un tournoi archivé n’est plus modifiable.', 409);
     } else if ((command.operation === 'create_availability' || command.operation === 'remove_unavailability') && current.status === 'PUBLISHED') {
       // Ajouter une plage ne déplace aucun match ; utile si la phase de classement manque de créneaux.
     } else if (current.status !== 'DRAFT' || await tx.match.count({ where: { tournament_id: id } })) throw new DomainError('CONFIGURATION_LOCKED', 'La configuration est verrouillée après publication ou création des matchs.', 409);
@@ -88,13 +91,20 @@ export async function configureTournamentForUser(userId: string, id: string, com
       case 'update_appearance': await tx.tournament.update({ where: { id }, data: command.payload }); break;
       case 'set_final_format': {
         const sizes = await tx.pool.findMany({ where: { tournament_id: id }, select: { _count: { select: { members: true } } } });
-        const problems = formatProblems(command.payload.final_format, sizes.map((pool) => pool._count.members));
+        const problems = formatProblems(command.payload.final_format, sizes.map((pool) => pool._count.members), command.payload.allow_incomplete);
         if (problems.length) throw new DomainError('FORMAT_IMPOSSIBLE', `Ce format ne convient pas à vos poules : ${problems.join(' ')}`, 422);
         await tx.tournamentRules.update({ where: { tournament_id: id }, data: command.payload });
         break;
       }
       case 'save_rules': await tx.tournamentRules.update({ where: { tournament_id: id }, data: command.payload }); break;
       case 'create_team': await tx.team.create({ data: { tournament_id: id, ...command.payload } }); break;
+      case 'create_teams': {
+        // Équipes de test ou de démonstration, créées d’un coup (une seule version, une seule mise à jour).
+        const slugs = command.payload.teams.map((team) => team.slug);
+        if (new Set(slugs).size !== slugs.length || await tx.team.count({ where: { tournament_id: id, slug: { in: slugs } } })) throw new DomainError('SLUG_TAKEN', 'Un identifiant d’équipe est déjà utilisé.', 409);
+        await tx.team.createMany({ data: command.payload.teams.map((team) => ({ tournament_id: id, ...team })) });
+        break;
+      }
       case 'update_team': {
         const { id: teamId, ...input } = command.payload;
         check((await tx.team.updateMany({ where: { tournament_id: id, id: teamId }, data: input })).count); break;
@@ -269,7 +279,7 @@ export async function scheduleTournamentForUser(userId: string, id: string, comm
       case 'complete': {
         if (current.status !== 'PUBLISHED') throw new DomainError('NOT_PUBLISHED', 'Seul un tournoi publié peut être terminé.', 409);
         const placement = placementState(configuration);
-        if (placement.format !== 'none' && !placement.finished) throw new DomainError('PLACEMENT_UNFINISHED', 'La phase de classement n’est pas terminée : jouez tous ses tours, ou choisissez « Poules uniquement » dans les règles si elle n’a pas commencé.', 409);
+        if (placement.format !== 'none' && !placement.finished) throw new DomainError('PLACEMENT_UNFINISHED', 'La phase de classement n’est pas terminée : jouez tous ses tours, ou choisissez « Poules uniquement » dans l’onglet Format et règles si elle n’a pas commencé.', 409);
         const open = configuration.matches.filter((match) => match.status !== 'COMPLETED' && match.status !== 'CANCELLED').length;
         if (open) throw new DomainError('MATCHES_OPEN', `${open} match${open > 1 ? 's n’ont' : ' n’a'} pas encore de résultat. Saisissez-le${open > 1 ? 's' : ''} ou annulez-le${open > 1 ? 's' : ''} avant de terminer le tournoi.`, 409);
         await tx.tournament.update({ where: { id }, data: { status: 'COMPLETED' } });

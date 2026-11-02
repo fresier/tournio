@@ -73,3 +73,54 @@ test('classement du tournoi provisoire : plages de places qui se précisent à c
   assert(done.every((row) => row.placeFrom === row.placeTo), 'toutes les places définitives');
   assert.deepEqual(done.map((row) => row.team), finalRanking([...played1, ...play(nextRound(played1))], 8));
 });
+
+test('groupe incomplet : chaque équipe joue le même nombre de matchs, quel que soit le nombre d’équipes', async () => {
+  const { formatProblems, incompleteNote, roundMatchCounts, provisionalRanking, placementGroups, miniOrder } = await import('../src/lib/domain/placement');
+  assert.match(formatProblems('cross', [4, 3])[0], /multiple de 4/);
+  assert.deepEqual(formatProblems('cross', [4, 3], true), []);
+  assert.deepEqual(formatProblems('rank', [3, 2], true), []);
+  assert.match(formatProblems('bracket', [4, 3], true)[0], /4, 8, 16/, 'jamais pour le tableau complet');
+  assert.equal(incompleteNote('cross', 8), null);
+  assert.match(incompleteNote('cross', 34)!, /Places 29 à 34 : 2 groupes de 3/);
+  assert.match(incompleteNote('cross', 33)!, /Places 25 à 33 : 3 groupes de 3/);
+  assert.match(incompleteNote('cross', 5)!, /1 groupe de 3 en mini-championnat et les 2 dernières en aller-retour/);
+  assert.match(incompleteNote('rank', 7)!, /places 5 à 7/);
+  assert.deepEqual(placementGroups('cross', 34).map((g) => `${g.kind}:${g.size}`).slice(-3), ['block:4', 'triangle:3', 'triangle:3']);
+
+  /** Phase de classement jouée en entier (l’équipe qui reçoit gagne), sur `n` équipes. */
+  const run = (n: number, format: 'rank' | 'cross') => {
+    const seedsN = Array.from({ length: n }, (_, i) => `S${String(i + 1).padStart(2, '0')}`);
+    const size = format === 'rank' ? 2 : 4;
+    const scored = (pairings: PlacementPairing[]) => play(pairings).map((m) => ({ ...m, homeScore: 21, awayScore: 15 }));
+    const p1 = scored(firstRound(seedsN, size));
+    const p2 = format === 'cross' ? scored(nextRound(p1)) : [];
+    const all = [...p1, ...p2];
+    const count = (team: string) => all.filter((m) => m.home === team || m.away === team).length;
+    assert.deepEqual(roundMatchCounts(format, n), format === 'cross' ? [p1.length, p2.length] : [p1.length], `${n} : matchs par tour`);
+    return { ranking: finalRanking(all, n, seedsN, size), count, seedsN, after1: provisionalRanking(seedsN, size, p1) };
+  };
+  for (let n = 2; n <= 40; n++) {
+    if (n === 3) continue;
+    const { ranking, count, seedsN } = run(n, 'cross');
+    assert.equal(ranking?.length, n, `${n} équipes : classement complet`);
+    assert.equal(new Set(ranking).size, n, `${n} équipes : chaque place une seule fois`);
+    assert(seedsN.every((team) => count(team) === 2), `${n} équipes : chacune joue 2 matchs (${seedsN.map(count).join(',')})`);
+  }
+  for (const n of [5, 7, 9, 13]) {
+    const { ranking, count, seedsN } = run(n, 'rank');
+    assert.equal(new Set(ranking).size, n);
+    assert(seedsN.every((team) => count(team) >= 1), `${n} : personne ne joue moins de 1 match`);
+    assert.deepEqual(seedsN.slice(-3).map(count), [2, 2, 2], `${n} : les 3 dernières en mini-championnat`);
+  }
+  // Pendant le mini-championnat, la plage reste ouverte ; à la fin, places exactes.
+  const seven = run(7, 'cross');
+  assert.deepEqual(seven.after1.slice(4).map((row) => `${row.team} ${row.placeFrom}-${row.placeTo}`), ['S05 5-5', 'S06 6-6', 'S07 7-7']);
+  // Départage d’un mini-championnat : victoires, puis différence de points.
+  const tri = (home: string, away: string, hs: number, as: number) => ({ round: 1, placeFrom: 1, placeTo: 3, slot: 0, home, away, homeScore: hs, awayScore: as, winner: hs > as ? home : away, loser: hs > as ? away : home });
+  assert.deepEqual(miniOrder([tri('A', 'B', 21, 10), tri('B', 'C', 21, 19), tri('C', 'A', 21, 15)], ['A', 'B', 'C']), ['A', 'C', 'B'], 'une victoire chacune : A (+5), C (+4), B (−9)');
+  assert.equal(miniOrder([tri('A', 'B', 21, 10)], ['A', 'B', 'C']), null, 'pas de classement avant les 3 matchs');
+  // Aller-retour (5 équipes en croisé) : une victoire chacun, départage à la différence.
+  const leg = (home: string, away: string, hs: number, as: number) => ({ ...tri(home, away, hs, as), placeFrom: 4, placeTo: 5 });
+  assert.deepEqual(miniOrder([leg('D', 'E', 21, 19), leg('E', 'D', 21, 12)], ['A', 'B', 'C', 'D', 'E']), ['E', 'D']);
+  assert.equal(miniOrder([leg('D', 'E', 21, 19)], ['A', 'B', 'C', 'D', 'E']), null, 'attend le match retour');
+});

@@ -147,8 +147,10 @@ model TournamentRules {
   points_draw Int @default(1)
   points_loss Int @default(0)
   tie_break_order String[] @default(["points", "score_difference", "scores_for", "team_id"])
-  final_format String @default("none") @db.VarChar(10)
+  /// Format de la phase de classement ; null tant qu’il n’est pas choisi (le calendrier l’attend).
+  final_format String? @db.VarChar(10)
   round_break_minutes Int @default(0)
+  allow_incomplete Boolean @default(false)
   @@map("tournament_rules")
   @@schema("tournio")
 }

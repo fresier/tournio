@@ -4,6 +4,8 @@ Application Next.js fullstack avec **PostgreSQL privé, Prisma 7 et Better Auth*
 
 La spécification métier est dans [TOURNIO_SPEC.md](TOURNIO_SPEC.md), le [plan actif](plans/003-postgres-prisma-better-auth.md) décrit la suite du MVP et le [compte rendu](docs/verification-prisma.md) précise ce qui a été vérifié.
 
+Pour préparer et gérer un tournoi, consultez le [guide du gestionnaire](docs/guide-gestionnaire.md) : configuration, publication, partage, résultats, phase de classement et archivage.
+
 ## Prérequis et configuration
 
 Node.js 24 ou supérieur, npm et une base PostgreSQL accessible. Docker est uniquement nécessaire pour les tests isolés ; l’application utilise directement `DATABASE_URL`.

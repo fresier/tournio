@@ -1,7 +1,7 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
-import { Box, Button, Card, Group, Paper, Stack, Tabs, TabsList, TabsPanel, TabsTab, Table, TableTbody, TableTd, TableTh, TableThead, TableTr, Text, TextInput, Title } from '@mantine/core';
+import { Box, Button, Card, Group, Stack, Tabs, TabsList, TabsPanel, TabsTab, Table, TableTbody, TableTd, TableTh, TableThead, TableTr, Text, TextInput, Title } from '@mantine/core';
 import { FormFeedback } from '@/components/forms/field';
 import { Disclosure } from '@/components/ui/disclosure';
 import { MatchStatus } from '@/components/ui/status';
@@ -114,7 +114,7 @@ export function ResultsPanel({ data, onChange, onShowSchedule, onShowRules }: { 
         <TabsList aria-label="Filtrer les matchs" mb="md"><TabsTab value="open">À saisir ({open.length})</TabsTab><TabsTab value="all">Tous ({data.matches.length})</TabsTab></TabsList>
         {(['open', 'all'] as const).map((value) => <TabsPanel key={value} value={value}>
       {/* Un match qui vient de sortir du filtre (score validé, annulé…) garde son message ici. */}
-      {feedback && feedback.id !== 'tournament' && !feedback.id.startsWith('slot:') && !shown.some((match) => match.id === feedback.id) ? <Box mb="md"><FormFeedback error={feedback.error} success={feedback.success} /></Box> : null}
+      {feedback && feedback.id !== 'tournament' && !feedback.id.startsWith('slot:') && !shown.some((match) => match.id === feedback.id) ? <FormFeedback error={feedback.error} success={feedback.success} /> : null}
       {!shown.length ? <Text c="dimmed">{filter === 'open' ? 'Tous les matchs ont un résultat ou sont annulés.' : 'Aucun match.'}</Text> : null}
       <Stack gap="lg">{groups.map((slot) => {
         const ready = slot.matches.filter((match) => match.status === 'SCHEDULED');
@@ -124,8 +124,8 @@ export function ResultsPanel({ data, onChange, onShowSchedule, onShowRules }: { 
             {t.status === 'PUBLISHED' && ready.length > 1 ? <Button size="sm" variant="light" loading={busy === slot.key} disabled={busy !== null && busy !== slot.key}
               onClick={() => void startGroup(slot.key, ready)}>Lancer les {ready.length} matchs</Button> : null}
           </Group>
-          {feedback?.id === slot.key ? <Box mb="xs"><FormFeedback error={feedback.error} success={feedback.success} /></Box> : null}
-          <Stack component="ol" gap="sm" p={0} m={0} style={{ listStyle: 'none' }}>{slot.matches.map((match) => <Paper component="li" key={match.id} withBorder p="md" className="result-row">
+          {feedback?.id === slot.key ? <FormFeedback error={feedback.error} success={feedback.success} /> : null}
+          <ol className="plain-list">{slot.matches.map((match) => <li key={match.id} className="result-row">
         <Group justify="space-between" gap="xs" mb={6}>
           <Text fz="sm" c="dimmed">{match.starts_at ? formatMatchTime(match.starts_at, t.timezone, multiDay) : 'Sans horaire'} · {match.court_id ? name(match.court_id) : 'à replanifier'} · {group(match)}</Text>
           <MatchStatus status={match.status} />
@@ -144,8 +144,8 @@ export function ResultsPanel({ data, onChange, onShowSchedule, onShowRules }: { 
         {match.status === 'COMPLETED' && (t.status === 'PUBLISHED' || t.status === 'COMPLETED') ? <Disclosure label="Corriger le résultat">{scoreForm(match, 'Enregistrer la correction')}</Disclosure> : null}
         {t.status === 'PUBLISHED' && match.status === 'POSTPONED' ? <Group gap={4}><Button size="sm" variant="light" onClick={onShowSchedule}>Replanifier dans le calendrier</Button>{action(match, 'Annuler le match', { operation: 'cancel', payload: {} }, 'Match annulé.', 'Annuler ce match ? Il ne comptera pas au classement.', 'subtle', 'red')}</Group> : null}
         {t.status === 'PUBLISHED' && match.status === 'CANCELLED' ? <Group>{action(match, 'Rétablir le match', { operation: 'reinstate', payload: {} }, 'Match rétabli.', undefined, 'light')}</Group> : null}
-        {feedback?.id === match.id ? <Box mt="xs"><FormFeedback error={feedback.error} success={feedback.success} /></Box> : null}
-      </Paper>)}</Stack>
+        {feedback?.id === match.id ? <FormFeedback error={feedback.error} success={feedback.success} /> : null}
+      </li>)}</ol>
         </Box>;
       })}</Stack>
         </TabsPanel>)}

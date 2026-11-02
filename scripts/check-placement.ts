@@ -11,6 +11,7 @@ import { createPilot } from './test-pilot';
 assertIsolatedTestDatabase();
 const db = getPrisma();
 let fixture: string | undefined;
+let extra: string | undefined;
 try {
   const cookie = await login('TEST_OWNER');
   let data: TournamentConfiguration = await createPilot(cookie, 'Pilote classement', { publish: true });
@@ -155,7 +156,37 @@ try {
   assert.equal(data.tournament.status, 'COMPLETED');
   for (const path of [`/t/${data.tournament.slug}`, `/t/${data.tournament.slug}/tv`]) assert((await (await request(path)).text()).includes('Classement final'), `${path} affiche le classement final`);
   console.log('OK — Tour 2 et classement final des 12 places, publié ; tour 1 figé ; tournoi terminé seulement après toutes les places.');
+
+  // Groupe incomplet : 11 équipes (4 + 4 + 3) en « Croisé en deux tours », refusé sans l’option, accepté avec.
+  let odd: TournamentConfiguration = await createPilot(cookie, 'Pilote incomplet', { publish: true, poolSizes: [4, 4, 3] });
+  extra = odd.tournament.id;
+  const oddEndpoint = `/api/v1/admin/tournaments/${odd.tournament.id}`;
+  const oddSend = async (path: string, operation: string, payload: unknown, status = 200, version = odd.tournament.version) => {
+    const response = await request(path, { method: path.endsWith('/schedule') ? 'POST' : path.includes('/matches/') ? 'POST' : 'PATCH', cookie, body: { operation, payload, expected_version: version } });
+    const body = await response.json();
+    assert.equal(response.status, status, `${operation} : ${JSON.stringify(body.error?.message ?? '')}`);
+    if (response.ok) odd = configurationSchema.parse(body.configuration);
+  };
+  await oddSend(oddEndpoint, 'set_final_format', { final_format: 'cross', round_break_minutes: 0 }, 422);
+  await oddSend(oddEndpoint, 'set_final_format', { final_format: 'cross', round_break_minutes: 0, allow_incomplete: true });
+  for (const match of odd.matches.filter((row) => row.phase === 'POOL')) await oddSend(`${oddEndpoint}/matches/${match.id}`, 'record_result', { home_score: 15, away_score: 9 }, 200, match.version);
+  await oddSend(`${oddEndpoint}/schedule`, 'generate_final_round', {});
+  const oddRound1 = odd.matches.filter((row) => row.final_round === 1);
+  assert.deepEqual(oddRound1.map((row) => `${row.place_from}-${row.place_to}`).sort(), ['1-4', '1-4', '5-8', '5-8', '9-11', '9-11', '9-11'], 'groupe de 3 : mini-championnat de 3 matchs dès le tour 1');
+  for (const match of oddRound1) await oddSend(`${oddEndpoint}/matches/${match.id}`, 'record_result', { home_score: 15, away_score: 9 }, 200, match.version);
+  await oddSend(`${oddEndpoint}/schedule`, 'generate_final_round', {});
+  const oddRound2 = odd.matches.filter((row) => row.final_round === 2);
+  assert.equal(oddRound2.length, 4, 'tour 2 : seulement les groupes complets');
+  for (const match of oddRound2) await oddSend(`${oddEndpoint}/matches/${match.id}`, 'record_result', { home_score: 15, away_score: 9 }, 200, match.version);
+  const oddSnapshot = publicTournamentSchema.parse((await (await request(`/api/v1/tournaments/${odd.tournament.slug}`)).json()).tournament);
+  assert.equal(oddSnapshot.placement.ranking?.length, 11);
+  assert.equal(new Set(oddSnapshot.placement.ranking).size, 11);
+  const played = (team: string) => odd.matches.filter((row) => row.phase === 'FINAL' && (row.home_team_id === team || row.away_team_id === team)).length;
+  assert(oddSnapshot.placement.ranking!.every((team) => played(team) === 2), 'chaque équipe joue 2 matchs de classement, groupe de 3 compris');
+  await oddSend(`${oddEndpoint}/schedule`, 'complete', {});
+  console.log('OK — Groupe incomplet (11 équipes, croisé) : mini-championnat à 3, 2 matchs pour chaque équipe, classement final des 11 places.');
 } finally {
+  if (extra) await db.tournament.delete({ where: { id: extra } }).catch(() => {});
   if (fixture) await db.tournament.delete({ where: { id: fixture } }).catch(() => {});
   await db.$disconnect();
 }

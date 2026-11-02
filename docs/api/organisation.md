@@ -49,7 +49,7 @@ Les opérations ne sont autorisées que sur un brouillon sans matchs, sauf : `se
 
 ## Phase de classement
 
-Après les poules, aucune équipe n’est éliminée : chacune joue le même nombre de matchs supplémentaires et toutes les places sont disputées. Le format est choisi dans les règles (`set_final_format`) :
+Après les poules, aucune équipe n’est éliminée : chacune joue le même nombre de matchs supplémentaires et toutes les places sont disputées. Le format est choisi dans l’onglet « Format et règles » du tournoi, placé après les équipes et les terrains pour que les estimations de durée soient disponibles (`set_final_format`) :
 
 | Format | Principe | Matchs en plus | Condition |
 | --- | --- | --- | --- |
@@ -57,6 +57,8 @@ Après les poules, aucune équipe n’est éliminée : chacune joue le même nom
 | `rank` | Un match par rang : les deux meilleurs premiers jouent la finale, etc. | 1 | nombre d’équipes pair |
 | `cross` | Groupes de 4 du classement général : 1re–4e et 2e–3e, puis gagnants et perdants jouent pour leurs places | 2 | multiple de 4 |
 | `bracket` | Tableau complet : à chaque tour, gagnants contre gagnants, perdants contre perdants | log₂ N | 4, 8, 16 ou 32 équipes |
+
+Groupe incomplet (`allow_incomplete` dans `set_final_format`, formats `rank` et `cross` seulement) : quand le nombre d’équipes ne tombe pas juste, les dernières du classement général jouent des mini-championnats, pour que chaque équipe joue le même nombre de matchs. En croisé : reste 3 → un groupe de 3 ; reste 2 → les 6 dernières en 2 groupes de 3 ; reste 1 → les 9 dernières en 3 groupes de 3 (5 équipes : un groupe de 3 et un aller-retour). Un groupe de 3 joue ses 3 matchs dès le tour 1 et se classe aux victoires, puis à la différence, puis aux points marqués. En « un match par rang » avec un nombre impair, les 3 dernières jouent un mini-championnat (2 matchs au lieu de 1).
 
 Classement général à l’issue des poules : tous les premiers, puis tous les deuxièmes… ; à rang égal, la meilleure moyenne par match (points, différence, scores marqués). Moteur pur : `src/lib/domain/placement.ts`.
 

@@ -40,7 +40,7 @@ export function PlacementCard({ data, busy, onCommand, onShowRules }: {
       <Text fw={700}>Classement final</Text>
       <List type="ordered" spacing={2}>{state.ranking.map((team, index) => <ListItem key={team}><Text span fw={index < 3 ? 800 : 500}>{ordinal(index + 1)} · {names.get(team)}</Text></ListItem>)}</List>
       <Text fz="sm" c="dimmed">Toutes les places sont jouées. Vous pouvez terminer le tournoi ci-dessous.</Text>
-    </Stack> : state.problems.length ? <Alert color="orange" variant="light">Ce format ne convient plus à vos poules : {state.problems.join(' ')} Changez de format dans les règles.</Alert>
+    </Stack> : state.problems.length ? <Alert color="orange" variant="light">Ce format ne convient plus à vos poules : {state.problems.join(' ')} Changez de format dans l’onglet Format et règles.</Alert>
       : <Stack gap="xs">
         <Text fw={700}>{state.round === 0 ? 'Étape suivante : lancer la phase de classement' : `Tour ${state.round} sur ${state.totalRounds} en cours`}</Text>
         {state.waiting.length ? <Text fz="sm" c="dimmed">En attente : {state.waiting.join(' ')}</Text>

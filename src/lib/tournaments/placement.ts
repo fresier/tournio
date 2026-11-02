@@ -24,11 +24,14 @@ export function poolTables(configuration: TournamentConfiguration): StandingRow[
 const played = (matches: Match[]): PlayedPairing[] => matches.filter((match) => match.status === 'COMPLETED' && match.home_score !== null && match.away_score !== null).map((match) => {
   const homeWins = match.home_score! > match.away_score!;
   return { round: match.final_round!, placeFrom: match.place_from!, placeTo: match.place_to!, slot: match.slot!,
-    home: match.home_team_id, away: match.away_team_id, winner: homeWins ? match.home_team_id : match.away_team_id, loser: homeWins ? match.away_team_id : match.home_team_id };
+    home: match.home_team_id, away: match.away_team_id, winner: homeWins ? match.home_team_id : match.away_team_id, loser: homeWins ? match.away_team_id : match.home_team_id,
+    homeScore: match.home_score!, awayScore: match.away_score! };
 });
 
 export type PlacementState = {
   format: FinalFormat;
+  /** Le format a été choisi par l’organisateur (sinon le calendrier attend). */
+  chosen: boolean;
   /** Le format ne s’applique pas à ces poules. */
   problems: string[];
   warning: string | null;
@@ -44,14 +47,16 @@ export type PlacementState = {
 };
 
 export function placementState(configuration: TournamentConfiguration): PlacementState {
-  const format = configuration.rules.final_format;
+  // Format pas encore choisi : comme « poules uniquement » pour les calculs, signalé par `chosen`.
+  const format: FinalFormat = configuration.rules.final_format ?? 'none';
   const pools = poolsInOrder(configuration);
   const sizes = pools.map((pool) => pool.teams.length);
   const teamCount = sizes.reduce((sum, size) => sum + size, 0);
   const finals = configuration.matches.filter((match) => match.phase === 'FINAL');
   const round = finals.reduce((max, match) => Math.max(max, match.final_round ?? 0), 0);
   const totalRounds = extraMatches(format, teamCount);
-  const ranking = format === 'none' ? null : finalRanking(played(finals), teamCount);
+  const seeds = overallSeeding(poolTables(configuration));
+  const ranking = format === 'none' ? null : finalRanking(played(finals), teamCount, seeds, blockSize(format, teamCount));
   const waiting: string[] = [];
   const status = configuration.tournament.status;
   if (status === 'DRAFT') waiting.push('Publiez le tournoi et jouez les poules d’abord.');
@@ -65,7 +70,7 @@ export function placementState(configuration: TournamentConfiguration): Placemen
     if (round >= totalRounds) waiting.push('Tous les tours de classement ont été générés.');
     else if (open) waiting.push(`${open} match${open > 1 ? 's' : ''} du tour ${round} ${open > 1 ? 'restent' : 'reste'} à jouer.`);
   }
-  return { format, problems: formatProblems(format, sizes), warning: format === 'none' ? null : fairnessWarning(sizes), teamCount, totalRounds, round, started: round > 0, finished: Boolean(ranking), waiting, ranking };
+  return { format, chosen: configuration.rules.final_format !== null, problems: formatProblems(format, sizes, configuration.rules.allow_incomplete), warning: format === 'none' ? null : fairnessWarning(sizes), teamCount, totalRounds, round, started: round > 0, finished: Boolean(ranking), waiting, ranking };
 }
 
 export type PlannedFinalMatch = PlacementPairing & { courtId: string; start: number; end: number };
@@ -76,7 +81,7 @@ export type PlannedFinalMatch = PlacementPairing & { courtId: string; start: num
  */
 export function planFinalRound(configuration: TournamentConfiguration): { status: 'ready'; matches: PlannedFinalMatch[] } | { status: 'refused'; reasons: string[] } {
   const state = placementState(configuration);
-  if (state.format === 'none') return { status: 'refused', reasons: ['Aucune phase de classement n’est prévue dans les règles du tournoi.'] };
+  if (state.format === 'none') return { status: 'refused', reasons: ['Aucune phase de classement n’est prévue (onglet Format et règles).'] };
   if (state.problems.length) return { status: 'refused', reasons: state.problems };
   if (state.waiting.length) return { status: 'refused', reasons: state.waiting };
 
@@ -98,4 +103,43 @@ export function planFinalRound(configuration: TournamentConfiguration): { status
     'Levez une indisponibilité de terrain (section Terrains) ou libérez des créneaux depuis le calendrier, puis réessayez.',
   ] };
   return { status: 'ready', matches: result.matches.map((match) => ({ ...pairings[Number(match.key)], courtId: match.courtId, start: match.start, end: match.end })) };
+}
+
+export type ForecastMatch = { round: number; number: number; placeFrom: number; placeTo: number; home: string; away: string; courtId: string; start: number; end: number };
+
+/**
+ * Phase de classement prévisionnelle, pour la prévisualisation du calendrier : affiches indicatives
+ * (« 1er Poule A », puis « Vainqueur du match 3 »), terrains et horaires estimés après `poolEnds`,
+ * avec la pause entre les tours et les règles du tournoi. Les vraies rencontres dépendent des classements.
+ */
+export function placementForecast(configuration: TournamentConfiguration, poolEnds: number[]): ForecastMatch[] {
+  const format = configuration.rules.final_format;
+  const pools = poolsInOrder(configuration);
+  const sizes = pools.map((pool) => pool.teams.length);
+  const teamCount = sizes.reduce((sum, size) => sum + size, 0);
+  if (!format || format === 'none' || formatProblems(format, sizes, configuration.rules.allow_incomplete).length || !poolEnds.length) return [];
+  const ordinal = (rank: number) => rank === 1 ? '1er' : `${rank}e`;
+  const labels: string[] = [];
+  for (let rank = 1; rank <= Math.max(...sizes); rank++) for (const pool of pools) if (pool.teams.length >= rank) labels.push(`${ordinal(rank)} ${pool.name}`);
+
+  const rules = scheduleRules(configuration);
+  const gap = Math.max(rules.transitionMinutes, rules.restMinutes, configuration.rules.round_break_minutes) * 60_000;
+  const forecast: ForecastMatch[] = [];
+  let pairings = firstRound(labels, blockSize(format, teamCount));
+  let previousEnd = Math.max(...poolEnds);
+  while (pairings.length) {
+    const notBefore = previousEnd + gap;
+    const courts = scheduleCourts(configuration).map((court) => ({ ...court, availabilities: court.availabilities
+      .map((window) => ({ start: Math.max(window.start, notBefore), end: window.end })).filter((window) => window.end > window.start) }));
+    const placed = placeMatches({ matches: pairings.map((pairing, index) => ({ key: String(index), poolId: 'final', round: pairing.round, home: pairing.home, away: pairing.away })), courts, rules });
+    if (placed.status !== 'scheduled') break;
+    const numbered = placed.matches.map((match) => ({ ...pairings[Number(match.key)], courtId: match.courtId, start: match.start, end: match.end }))
+      .sort((a, b) => a.start - b.start || a.placeFrom - b.placeFrom || a.slot - b.slot)
+      .map((match, index) => ({ ...match, number: forecast.length + index + 1 }));
+    forecast.push(...numbered.map(({ round, number, placeFrom, placeTo, home, away, courtId, start, end }) => ({ round, number, placeFrom, placeTo, home, away, courtId, start, end })));
+    previousEnd = Math.max(...numbered.map((match) => match.end));
+    // Tour suivant : « Vainqueur / Perdant du match n » à la place des équipes.
+    pairings = nextRound(numbered.map((match) => ({ ...match, winner: `Vainqueur du match ${match.number}`, loser: `Perdant du match ${match.number}` })));
+  }
+  return forecast;
 }

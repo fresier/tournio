@@ -99,6 +99,12 @@ try {
   data=configurationSchema.parse((await (await request(endpoint,{cookie:owner})).json()).configuration);
   assert.equal(data.tournament.version,version+1);
   assert.equal(data.teams.length,3);
+  // Équipes de test : créées d’un coup ; un identifiant déjà pris refuse tout le lot.
+  await mutate('create_teams',{teams:[{name:'Les Démo A',slug:'les-demo-a'},{name:'Les Démo B',slug:'les-demo-b'}]});
+  assert.equal(data.teams.length,5);
+  await mutate('create_teams',{teams:[{name:'Les Démo C',slug:'les-demo-c'},{name:'Doublon',slug:'les-demo-a'}]},409);
+  for (const slug of ['les-demo-a','les-demo-b']) await mutate('delete_team',{id:data.teams.find((team)=>team.slug===slug)!.id});
+  assert.equal(data.teams.length,3);
   console.log('OK — Références étrangères, CSRF et écritures concurrentes protégées.');
 
   await assert.rejects(db.match.create({data:{tournament_id:data.tournament.id,pool_id:pool.id,home_team_id:teamA.id,away_team_id:teamA.id}}));
@@ -144,6 +150,12 @@ try {
       await configure('assign_team', { team_id: plan.teams.at(-1)!.id, pool_id: plan.pools[p].id });
     }
   }
+  // Format vide à la création : le calendrier attend ce choix.
+  assert.equal(plan.rules.final_format, null);
+  const unset = await preview();
+  assert.equal(unset.status, 'blocked');
+  assert(unset.reasons.some((reason) => reason.includes('format du tournoi')), 'calendrier bloqué tant que le format n’est pas choisi');
+  await configure('set_final_format', { final_format: 'none', round_break_minutes: 0 });
   const first = await preview();
   assert.equal(first.status, 'ready'); assert.equal(first.matches.length, 18); assert.deepEqual(first.save_blockers, []);
   assert.equal(await db.match.count({ where: { tournament_id: plan.tournament.id } }), 0, 'la prévisualisation n’écrit rien');
@@ -291,9 +303,18 @@ try {
   await assert.rejects(db.tournament.update({ where: { id: plan.tournament.id }, data: { theme: 'x;y' } }), 'contrainte SQL du thème');
   await configure('save_rules', { match_duration_minutes: 30, transition_minutes: 5, minimum_rest_minutes: 10, allow_draw: false, points_win: 3, points_draw: 1, points_loss: 0, tie_break_order: ['points', 'score_difference', 'scores_for', 'team_id'] }, 409);
   await assert.rejects(db.tournament.update({ where: { id: plan.tournament.id }, data: { accent_color: 'blue' } }), 'contrainte SQL du format');
-  console.log('OK — Apparence : thème et couleurs modifiables après publication, publics, format contrôlé.');
+  // Renommer après publication : le nom seulement ; l’identifiant du lien et les suppressions restent verrouillés.
+  const renamed = plan.teams[0];
+  await configure('update_team', { id: renamed.id, name: 'Équipe renommée', slug: renamed.slug });
+  assert.equal(publicTournamentSchema.parse((await (await request(publicApi)).json()).tournament).teams.find((team) => team.id === renamed.id)?.name, 'Équipe renommée');
+  await configure('update_team', { id: renamed.id, name: 'Équipe renommée', slug: `${renamed.slug}-x` }, 409);
+  await configure('update_pool', { id: plan.pools[0].id, name: 'Poule renommée' });
+  await configure('delete_team', { id: renamed.id }, 409);
+  await configure('update_team', { id: renamed.id, name: renamed.name, slug: renamed.slug });
+  console.log('OK — Apparence et noms (équipes, poules) modifiables après publication, publics, format contrôlé.');
   await schedule('archive', {});
   await configure('update_appearance', { theme: 'tournio', primary_color: null, accent_color: null }, 409);
+  await configure('update_pool', { id: plan.pools[0].id, name: 'Après archivage' }, 409);
   await act(g2.id, 'record_result', { home_score: 0, away_score: 1 }, 409);
   assert.equal(publicTournamentSchema.parse((await (await request(publicApi)).json()).tournament).tournament.status, 'ARCHIVED', 'un tournoi archivé reste consultable');
   assert.equal(plan.tournament.status, 'ARCHIVED');

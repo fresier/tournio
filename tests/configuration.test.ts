@@ -35,3 +35,24 @@ test('les dates affichées sont identiques côté serveur et navigateur', async 
   assert.equal(spansSeveralDays('2026-11-14T08:00:00Z', '2026-11-14T22:30:00Z', 'Europe/Brussels'), false);
   assert.equal(spansSeveralDays('2026-11-14T08:00:00Z', '2026-11-14T23:30:00Z', 'Europe/Brussels'), true);
 });
+
+test('identifiant d’équipe généré depuis le nom, rendu unique par un suffixe', async () => {
+  const { slugify, uniqueSlug } = await import('../src/lib/tournaments/contracts');
+  assert.equal(uniqueSlug(slugify('Les Lions'), []), 'les-lions');
+  assert.equal(uniqueSlug(slugify('Les lions !'), ['les-lions']), 'les-lions-2');
+  assert.equal(uniqueSlug('les-lions', ['les-lions', 'les-lions-2']), 'les-lions-3');
+  const long = 'a'.repeat(100);
+  assert.equal(uniqueSlug(long, [long]).length, 100);
+  assert.match(uniqueSlug(long, [long]), /-2$/);
+});
+
+test('noms proposés : Poule A, B… et Terrain 1, 2…, en sautant les noms pris', async () => {
+  const { nextPoolName, nextCourtName } = await import('../src/lib/tournaments/contracts');
+  assert.equal(nextPoolName([]), 'Poule A');
+  assert.equal(nextPoolName(['Poule A', 'Poule B']), 'Poule C');
+  assert.equal(nextPoolName(['Poule A', 'poule c']), 'Poule B', 'un nom supprimé est reproposé');
+  assert.equal(nextPoolName(Array.from({ length: 26 }, (_, i) => `Poule ${String.fromCharCode(65 + i)}`)), 'Poule AA');
+  assert.equal(nextCourtName([]), 'Terrain 1');
+  assert.equal(nextCourtName(['Terrain 1', 'Terrain 3']), 'Terrain 2');
+  assert.equal(nextCourtName(['Central', 'Terrain 1']), 'Terrain 2');
+});

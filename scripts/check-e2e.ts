@@ -37,6 +37,8 @@ function watch(page: Page, label: string) {
 async function audit(page: Page, label: string) {
   // Next.js diffuse les métadonnées après une navigation client : on attend le <title> avant l’audit.
   await page.waitForFunction(() => document.title.length > 0);
+  // Fin des animations en cours (apparition d’une notification…) : un élément en fondu fausserait la mesure du contraste.
+  await page.evaluate(`Promise.race([Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => null))), new Promise((resolve) => setTimeout(resolve, 2000))])`);
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const serious = result.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
   for (const violation of result.violations) if (!serious.includes(violation)) console.log(`  (info) ${label} — ${violation.id} : ${violation.help}`);
@@ -80,7 +82,8 @@ async function signedIn(browser: Browser, options: Parameters<Browser['newContex
 async function tabTo(page: Page, name: string) {
   for (let i = 0; i < 60; i++) {
     await page.keyboard.press('Tab');
-    if (await page.evaluate((text) => document.activeElement?.textContent?.trim() === text, name)) return;
+    // La coche « ✓ » d’un onglet complété ne fait pas partie de son nom.
+    if (await page.evaluate((text) => document.activeElement?.textContent?.replace('✓', '').trim() === text, name)) return;
   }
   throw new Error(`« ${name} » n’est pas atteignable au clavier.`);
 }
@@ -128,9 +131,68 @@ try {
   await admin.goto(`${origin}/dashboard`); await admin.getByText('Pilote navigateur').first().waitFor(); await audit(admin, 'dashboard');
   await admin.goto(`${origin}/dashboard/tournaments/${t.id}`);
   await admin.getByRole('heading', { level: 1, name: 'Pilote navigateur' }).waitFor(); await audit(admin, 'configuration');
+  // Glisser-déposer (brouillon) : une équipe de la liste vers la Poule B, puis retour en Poule A depuis la carte de poule.
+  // Fenêtre haute : la poule cible doit être visible (sinon le défilement automatique déplace la cible pendant le test).
+  await admin.setViewportSize({ width: 1280, height: 1600 });
+  await admin.getByRole('tab', { name: 'Équipes et poules', exact: true }).click();
+  const poolOf = async (name: string) => (await db.poolTeam.findFirstOrThrow({ where: { tournament_id: t.id, team: { name } }, include: { pool: true } })).pool.name;
+  const drag = async (handle: ReturnType<Page['locator']>, target: ReturnType<Page['locator']>) => {
+    const from = (await handle.boundingBox())!; const to = (await target.boundingBox())!;
+    await admin.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await admin.mouse.down();
+    await admin.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+    await admin.mouse.up();
+  };
+  const poolCard = (name: string) => admin.locator('.drop-zone').filter({ has: admin.getByRole('button', { name: `${name} — renommer (Entrée)` }) });
+  await drag(admin.getByRole('listitem', { name: 'Équipe Les Renards' }).getByRole('button', { name: 'Déplacer Les Renards' }), poolCard('Poule B'));
+  for (let i = 0; i < 20 && await poolOf('Les Renards') !== 'Poule B'; i++) await admin.waitForTimeout(250);
+  assert.equal(await poolOf('Les Renards'), 'Poule B', 'déposée dans la Poule B');
+  await drag(poolCard('Poule B').getByRole('button', { name: 'Déplacer Les Renards' }), poolCard('Poule A'));
+  for (let i = 0; i < 20 && await poolOf('Les Renards') !== 'Poule A'; i++) await admin.waitForTimeout(250);
+  assert.equal(await poolOf('Les Renards'), 'Poule A', 'revenue en Poule A');
+  // Clavier : Espace saisit l’équipe, Échap annule sans rien changer.
+  await admin.getByRole('listitem', { name: 'Équipe Les Éclairs' }).getByRole('button', { name: 'Déplacer Les Éclairs' }).focus();
+  await admin.keyboard.press('Space');
+  await admin.getByText('Les Éclairs saisie.').waitFor({ state: 'attached' });
+  // dnd-kit n’écoute Échap qu’au tick suivant la saisie (pour ignorer la touche qui l’a lancée).
+  await admin.waitForTimeout(200);
+  await admin.keyboard.press('Escape');
+  await admin.getByText('Déplacement de Les Éclairs annulé.').waitFor({ state: 'attached' });
+  assert.equal(await poolOf('Les Éclairs'), 'Poule A');
+  await audit(admin, 'glisser-déposer des équipes');
+  await admin.setViewportSize({ width: 1280, height: 900 });
+  console.log('OK — Équipes glissées-déposées entre poules (souris), saisie et annulation au clavier annoncées.');
+
+  // Renommer une équipe et une poule d’un clic (brouillon) : le nom change, l’identifiant du lien reste.
+  await admin.getByRole('tab', { name: 'Équipes et poules', exact: true }).click();
+  await admin.getByRole('button', { name: 'Les Renards — renommer (Entrée)' }).click();
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Les Renards' }).fill('Les Renards du Nord');
+  await admin.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await admin.getByRole('button', { name: 'Les Renards du Nord — renommer (Entrée)' }).waitFor();
+  assert.equal((await db.team.findFirstOrThrow({ where: { tournament_id: t.id, name: 'Les Renards du Nord' } })).slug, 'equipe-1', 'identifiant du lien inchangé');
+  await audit(admin, 'équipes et poules (brouillon)');
+  await admin.getByRole('button', { name: 'Les Renards du Nord — renommer (Entrée)' }).click();
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Les Renards du Nord' }).fill('Les Renards');
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Les Renards du Nord' }).press('Enter');
+  await admin.getByRole('button', { name: 'Les Renards — renommer (Entrée)' }).waitFor();
+  // Au clavier : Entrée sur le nom de la poule ouvre l’édition, Échap annule, clic puis Entrée enregistre.
+  await admin.getByRole('button', { name: 'Poule A — renommer (Entrée)' }).focus();
+  await admin.keyboard.press('Enter');
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Poule A' }).press('Escape');
+  await admin.getByRole('button', { name: 'Poule A — renommer (Entrée)' }).click();
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Poule A' }).fill('Poule Alpha');
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Poule A' }).press('Enter');
+  await admin.getByRole('button', { name: 'Poule Alpha — renommer (Entrée)' }).waitFor();
+  await admin.getByRole('button', { name: 'Poule Alpha — renommer (Entrée)' }).click();
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Poule Alpha' }).fill('Poule A');
+  await admin.getByRole('textbox', { name: 'Nouveau nom de Poule Alpha' }).press('Enter');
+  await admin.getByRole('button', { name: 'Poule A — renommer (Entrée)' }).waitFor();
+  await admin.getByRole('tab', { name: 'Paramètres', exact: true }).click();
+  await admin.getByRole('heading', { level: 1, name: 'Pilote navigateur' }).click(); // repart du haut pour la navigation clavier
+
   // Onglets ARIA : Tab atteint l’onglet actif, les flèches passent aux suivants.
-  await tabTo(admin, 'Informations');
-  for (let i = 0; i < 12 && !await admin.evaluate(() => document.activeElement?.textContent?.trim() === 'Calendrier'); i++) await admin.keyboard.press('ArrowRight');
+  await tabTo(admin, 'Paramètres');
+  for (let i = 0; i < 12 && !await admin.evaluate(() => document.activeElement?.textContent?.replace('✓', '').trim() === 'Calendrier'); i++) await admin.keyboard.press('ArrowRight');
   await admin.getByRole('tab', { name: 'Calendrier', selected: true }).waitFor();
   await tabTo(admin, 'Prévisualiser le calendrier'); await admin.keyboard.press('Enter');
   await admin.getByText(/^18 matchs de /).waitFor();
@@ -140,6 +202,8 @@ try {
   await admin.getByRole('button', { name: 'Publier le tournoi' }).click();
   await admin.getByText('Tournoi publié.', { exact: true }).waitFor();
   assert.equal(await db.match.count({ where: { tournament_id: t.id } }), 18);
+  // Onglets complétés : tout ce qui précède la publication est coché (Résultats et Partage non).
+  await admin.waitForFunction(() => document.querySelectorAll('.tab-done').length === 5);
   for (const [label, locator] of [
     ['Lien « Liens et QR codes »', admin.getByRole('button', { name: 'Liens et QR codes' })],
     ['Bouton « Recharger »', admin.getByRole('button', { name: 'Recharger' })],
@@ -205,7 +269,8 @@ try {
   console.log('OK — Score saisi au clavier, affiché en direct sur le téléphone.');
 
   // Thème et couleurs choisis dans l’onglet Apparence → appliqués en direct sur le téléphone.
-  await admin.getByRole('tab', { name: 'Apparence', exact: true }).click();
+  await admin.getByRole('tab', { name: 'Paramètres', exact: true }).click();
+  await admin.getByRole('heading', { name: 'Apparence du tournoi' }).scrollIntoViewIfNeeded();
   await audit(admin, 'apparence');
   const primary = admin.getByRole('textbox', { name: 'Couleur principale' });
   await primary.fill('#0f766e');
@@ -234,18 +299,27 @@ try {
   await admin.getByRole('tab', { name: 'Résultats', exact: true }).click();
   console.log('OK — Thème et couleurs du tournoi appliqués en direct sur la page publique (thème sombre compris), et au dashboard du tournoi, accessibles.');
 
+  // Équipes et poules : deux colonnes égales, équipes à gauche, poules (et tirage au sort) à droite.
+  await admin.getByRole('tab', { name: 'Équipes et poules', exact: true }).click();
+  await admin.getByRole('heading', { name: 'Ajouter une poule' }).waitFor();
+  const [teamsBox, poolsBox] = await Promise.all(['Ajouter une équipe', 'Ajouter une poule'].map((name) => admin.getByRole('heading', { name }).boundingBox()));
+  assert(teamsBox && poolsBox && poolsBox.x > teamsBox.x + 300 && Math.abs(poolsBox.y - teamsBox.y) < 5, 'deux colonnes côte à côte sur ordinateur');
+  await audit(admin, 'équipes et poules');
+  if (process.env.E2E_SCREENSHOTS) await admin.screenshot({ path: `${process.env.E2E_SCREENSHOTS}/equipes-poules.png` });
+
   // Terrains : disponibles pendant tout le tournoi, seules les indisponibilités sont saisies.
   await admin.getByRole('tab', { name: 'Terrains', exact: true }).click();
   assert.equal(await admin.getByText('Disponible pendant tout le tournoi', { exact: true }).count(), 3);
   await audit(admin, 'terrains');
 
-  // Format du tournoi expliqué dans les règles, choisi après publication ; la section Résultats guide la suite.
-  await admin.getByRole('tab', { name: 'Règles', exact: true }).click();
+  // Format du tournoi expliqué dans l’onglet Format et règles, choisi après publication ; la section Résultats guide la suite.
+  await admin.getByRole('tab', { name: 'Format et règles', exact: true }).click();
+  await admin.waitForURL(/[?&]onglet=format-et-regles/);
   await admin.getByRole('heading', { name: 'Format du tournoi' }).waitFor();
   await audit(admin, 'règles et formats');
   assert(await admin.getByRole('radio', { name: /Tableau complet/ }).isDisabled(), 'tableau complet indisponible avec 12 équipes');
-  await admin.getByText(/^Durées estimées pour 12 équipes/).waitFor();
-  assert.equal(await admin.getByText(/^≈ .* · fin vers \d\d:\d\d$/).count(), 3, 'durée estimée pour chaque format possible');
+  await admin.locator('.format-context').getByText('12 équipes', { exact: true }).waitFor();
+  assert.equal(await admin.locator('.format-duration').count(), 3, 'durée estimée pour chaque format possible');
   await admin.getByRole('radio', { name: /Croisé en deux tours/ }).check();
   await admin.getByRole('button', { name: 'Enregistrer le format' }).click();
   await admin.getByText('Modification enregistrée.').waitFor();
@@ -253,7 +327,13 @@ try {
   await admin.getByRole('tab', { name: 'Résultats', exact: true }).click();
   await admin.getByText('Étape suivante : lancer la phase de classement').waitFor();
   await admin.getByText(/matchs de poule restent à jouer/).waitFor();
-  console.log('OK — Formats expliqués dans les règles, « Croisé en deux tours » choisi après publication, étape suivante indiquée.');
+  // Le calendrier enregistré montre la phase de classement prévisionnelle du format choisi.
+  await admin.getByRole('tab', { name: 'Calendrier', exact: true }).click();
+  await admin.getByRole('heading', { name: 'Phase de classement · prévisionnel' }).waitFor();
+  assert((await admin.getByText(/^Vainqueur du match \d+ – Vainqueur du match \d+$/).count()) > 0, 'tour 2 prévisionnel');
+  await audit(admin, 'calendrier prévisionnel');
+  await admin.getByRole('tab', { name: 'Résultats', exact: true }).click();
+  console.log('OK — Formats expliqués dans l’onglet Format et règles, « Croisé en deux tours » choisi après publication, étape suivante indiquée.');
 
   // Écran TV 1920×1080 : sans défilement, accessible, mis à jour en direct (thème sombre du tournoi).
   // Mouvement réduit : le fondu de rotation des classements fausserait la mesure du contraste.

@@ -1,8 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Alert, Anchor, Box, Button, Card, Code, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Alert, Anchor, Button, Card, Code, Group, Stack, Text, Title } from '@mantine/core';
 import { QrCode, useClientOrigin } from '@/components/qr-code';
-import { Disclosure } from '@/components/ui/disclosure';
 import { DEFAULT_PRIMARY, palette, readableShade } from '@/lib/appearance';
 import type { TournamentConfiguration } from '@/lib/tournaments/contracts';
 
@@ -43,17 +42,6 @@ export function SharePanel({ data, origin }: { data: TournamentConfiguration; or
         <Button component="a" href={`${tournamentUrl}/tv`} target="_blank" rel="noopener noreferrer">Ouvrir l’écran TV</Button>
         <Button variant="subtle" size="sm" onClick={() => void copy(`${tournamentUrl}/tv`)}>{copied === `${tournamentUrl}/tv` ? 'Lien copié' : 'Copier le lien'}</Button>
       </Group>
-    </Card>
-    <Card>
-      <Group justify="space-between" mb="xs"><Title order={2} fz="xl">Liens par équipe</Title><Text c="dimmed" fz="sm">{data.teams.length} équipes</Text></Group>
-      <Text fz="sm" c="dimmed" mb="md">Chaque équipe arrive directement sur son prochain match. À imprimer ou à envoyer aux capitaines.</Text>
-      <Stack component="ul" gap="xs" p={0} m={0} style={{ listStyle: 'none' }}>{data.teams.map((team) => {
-        const url = `${tournamentUrl}/teams/${team.slug}`;
-        return <Paper component="li" key={team.id} withBorder p="sm">
-          <Group justify="space-between"><Text fw={700}>{team.name}</Text><Button variant="subtle" size="compact-sm" onClick={() => void copy(url)}>{copied === url ? 'Lien copié' : 'Copier le lien'}</Button></Group>
-          <Disclosure label="QR code"><Group align="center" gap="md"><QrCode url={url} color={qrColor} /><Box style={{ minWidth: 0, flex: 1 }}><Anchor href={url} target="_blank" rel="noopener noreferrer" fz="sm" style={{ overflowWrap: 'anywhere' }}>{url}</Anchor></Box></Group></Disclosure>
-        </Paper>;
-      })}</Stack>
     </Card>
   </Stack>;
 }

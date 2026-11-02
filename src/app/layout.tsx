@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import './globals.css';
 import { mantineHtmlProps } from '@mantine/core';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';

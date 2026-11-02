@@ -1,339 +1,363 @@
-# Tournio — Cahier des charges pour Codex
+# Tournio — Cahier des charges
 
-Version : 0.1 — 31 octobre 2026  
-Statut : spécification initiale du MVP, à affiner avant mise en production.
+Version : 1.0 — 2 novembre 2026
+Statut : description du logiciel **tel qu’il est réalisé et vérifié**. Remplace la spécification initiale 0.1 du 31 octobre 2026.
+Production : `https://tourn.rfonline.be` (Coolify). Marque affichée sur l’écran TV : « tournio. by rfonline ».
+
+---
 
 ## 1. Vision
 
-**Tournio** est une application web responsive de gestion de tournois sportifs amateurs, indépendante du sport. Elle permet à un organisateur de créer un tournoi, d'inscrire des équipes, de générer un calendrier, d'affecter des terrains et des horaires, puis de saisir les scores. Les participants accèdent **sans compte** à une page publique en **lecture seule**, sélectionnent leur équipe et suivent leurs matchs, leurs horaires, leurs terrains et leurs résultats.
+**Tournio** est une application web de gestion de tournois sportifs amateurs, indépendante du sport. Un organisateur crée un tournoi, inscrit des équipes, les répartit en poules, configure ses terrains, choisit le format de la suite du tournoi, génère et publie le calendrier, puis saisit les scores. Les participants suivent tout **sans compte**, sur une page publique en lecture seule, depuis leur téléphone. Un écran TV peut afficher le tournoi dans la salle.
 
-**Promesse :** « Your tournament. Simplified. »
+**Promesse :** « Votre tournoi. Simplifié. »
 
 ### Principes
 
-- Mobile-first pour les participants ; interface desktop et tablette pour l'organisation.
-- Interface en français au lancement ; architecture prête pour l'internationalisation.
-- Aucune authentification requise pour consulter un tournoi public.
-- Séparation stricte des autorisations : seuls les organisateurs habilités peuvent modifier les données.
-- Mise à jour rapide des informations, avec fonctionnement dégradé en cas de perte de connexion.
-- Ne pas supposer que tous les sports utilisent le même système de score.
+- **Personne n’est éliminé.** Après les poules, chaque équipe joue le même nombre de matchs et toutes les places sont disputées.
+- Mobile-first pour les participants ; le dashboard organisateur est utilisable sur ordinateur, tablette et téléphone, au bord du terrain.
+- Interface en français.
+- Aucune authentification pour consulter un tournoi publié ; connexion Google uniquement pour les organisateurs.
+- Toute mutation est contrôlée côté serveur (propriétaire, origine, version, état), jamais seulement dans l’interface.
+- Mises à jour en direct, avec fonctionnement dégradé en cas de perte de connexion.
+- Score numérique simple, sans figer un sport.
+- Accessibilité WCAG 2.1 AA vérifiée automatiquement.
 
-## 2. Périmètre MVP
+---
 
-### Inclus (P0)
+## 2. Périmètre
 
-1. Authentification des organisateurs.
-2. Création, modification, publication et archivage d'un tournoi.
-3. Configuration des terrains, équipes, format et règles de score.
-4. Génération des matchs **en poules / round-robin**, avec attribution des horaires et terrains.
-5. Modification manuelle des matchs par l'organisateur.
-6. Saisie, correction et validation des résultats.
-7. Classement des poules calculé automatiquement.
-8. Page publique du tournoi et page personnalisée de chaque équipe, sans connexion.
-9. Affichage du prochain match, de l'adversaire, de l'heure, du terrain, du statut et des résultats.
-10. Actualisation automatique des données (temps réel si disponible, repli par polling).
-11. QR code ou lien partageable vers le tournoi / l'équipe.
-12. Gestion explicite des fuseaux horaires et des conflits de planification.
+### Réalisé
 
-### Hors MVP (P1/P2)
+1. Connexion des organisateurs par Google ; isolation stricte entre organisateurs.
+2. Création et configuration d’un tournoi : informations, apparence, équipes, poules, terrains, format, règles.
+3. Répartition des équipes en poules : manuelle (glisser-déposer ou sélecteur), tirage au sort, équipes de test.
+4. Terrains disponibles par défaut sur toute la période ; saisie des seules indisponibilités.
+5. Choix du format après les poules : poules uniquement, un match par rang, croisé en deux tours, tableau complet ; groupe incomplet géré à nombre de matchs égal.
+6. Estimation de durée par format, matchs par équipe, conseils sur le nombre de poules.
+7. Génération déterministe du calendrier des poules, prévisualisation (phase de classement prévisionnelle comprise), déplacements manuels revalidés, publication.
+8. Saisie des résultats, lancement groupé d’un créneau, report, annulation, rétablissement, correction.
+9. Phase de classement : tours générés à la demande, classement provisoire puis final.
+10. Pages publiques du tournoi et de chaque équipe, écran TV 16:9, QR codes.
+11. Thèmes et couleurs par tournoi, appliqués aux pages publiques, à la TV et au dashboard du tournoi.
+12. Mises à jour en direct (SSE), polling de secours, rechargement automatique après un déploiement.
+13. Démonstration temps réel publique (`/demo`) avec QR code.
 
-- Phases finales à élimination directe, et formats mixtes poules + tableau.
-- Notifications push, SMS et e-mail.
-- Interface arbitre et multi-organisateurs avancée.
-- Écran TV / affichage public dédié.
+### Hors périmètre actuel
+
+- Notifications push, SMS, e-mail (idée validée, reportée).
+- Plusieurs organisateurs par tournoi, interface arbitre.
 - Décalage automatique de tous les matchs après un retard.
-- Inscriptions publiques, paiements, billetterie, statistiques historiques avancées.
-- Application native iOS/Android.
+- Scores par set, tie-breaks spécifiques à une discipline, forfaits.
+- Inscriptions publiques, paiements, statistiques historiques.
+- Application native, internationalisation.
 
-Ne pas implémenter ces fonctionnalités dans le MVP sans demande explicite.
+---
 
 ## 3. Rôles et droits
 
-| Action                           | Visiteur / équipe | Organisateur propriétaire |
-| -------------------------------- | ----------------- | ------------------------- |
-| Voir un tournoi publié           | Oui               | Oui                       |
-| Sélectionner une équipe          | Oui               | Oui                       |
-| Consulter matchs et résultats    | Oui               | Oui                       |
-| Créer / configurer un tournoi    | Non               | Oui                       |
-| Générer / modifier le calendrier | Non               | Oui                       |
-| Encoder / corriger un score      | Non               | Oui                       |
-| Publier / archiver               | Non               | Oui                       |
+| Action | Visiteur / équipe | Organisateur propriétaire |
+| --- | --- | --- |
+| Voir un tournoi publié, une page équipe, l’écran TV | Oui | Oui |
+| Choisir et suivre une équipe | Oui | Oui |
+| Créer, configurer un tournoi | Non | Oui |
+| Générer, déplacer, publier le calendrier | Non | Oui |
+| Saisir, corriger un score ; lancer un tour | Non | Oui |
+| Terminer, archiver un tournoi | Non | Oui |
 
-- Les liens publics ne sont **pas** des jetons d'écriture.
-- Une page d'équipe est une vue filtrée d'un tournoi public, pas un espace privé.
-- Un tournoi en brouillon n'est pas visible publiquement.
-- Toute mutation doit être contrôlée côté serveur, jamais seulement dans l'interface.
+- Un brouillon n’est jamais public : il répond comme un tournoi inexistant (404).
+- Les liens publics et les QR codes ne donnent aucun droit d’écriture et ne contiennent aucune donnée personnelle.
+- Un organisateur ne voit ni ne modifie les tournois d’un autre (404 sur toute ressource étrangère).
 
-## 4. Parcours utilisateur
+---
+
+## 4. Parcours
 
 ### Organisateur
 
-1. Se connecter.
-2. Créer un tournoi : nom, sport, lieu, dates, fuseau horaire.
-3. Définir les terrains et les plages horaires disponibles.
-4. Ajouter les équipes, puis les répartir en poules (manuellement dans le MVP).
-5. Paramétrer durée des matchs, intervalle entre matchs, repos minimal et règles de classement.
-6. Prévisualiser le calendrier généré et ses éventuels conflits.
-7. Valider et publier le tournoi.
-8. Pendant l'événement : ajuster les horaires / terrains et saisir les scores.
-9. Consulter le classement et archiver le tournoi après la compétition.
+Le dashboard d’un tournoi suit l’ordre du travail, en sept onglets (gardés dans l’URL : `?onglet=…`). Un onglet complété porte une coche ✓.
 
-### Équipe / participant
+| Onglet | Contenu | Coché quand |
+| --- | --- | --- |
+| **Paramètres** | Informations du tournoi, puis apparence | informations saisies |
+| **Équipes et poules** | Équipes à gauche, poules à droite | ≥ 2 équipes par poule, toutes placées |
+| **Terrains** | Terrains et indisponibilités | ≥ 1 terrain, chacun avec des créneaux |
+| **Format et règles** | Format après les poules, puis règles | format choisi et compatible |
+| **Calendrier** | Prévisualisation, enregistrement, publication, déplacements, archivage | tournoi publié |
+| **Résultats** | Saisie par créneau, phase de classement, fin du tournoi | tournoi terminé |
+| **Partage** | Lien public, QR code, écran TV | — |
 
-1. Ouvrir un lien ou scanner un QR code.
-2. Sélectionner son équipe dans la liste.
-3. Retrouver automatiquement cette sélection lors des visites suivantes (stockage local).
-4. Voir en priorité le **prochain match** : heure locale, adversaire, terrain et compte à rebours indicatif.
-5. Voir les matchs passés, en cours et à venir, ainsi que les scores et le classement.
-6. Pouvoir changer d'équipe à tout moment.
+Au-dessus des onglets : quatre indicateurs cliquables (matchs joués, équipes placées, poules, terrains et heures de créneaux), avec les points à régler en orange. Les retours d’action s’affichent en **notifications** (en haut à droite) ; les erreurs propres à un champ restent sous le champ.
 
-## 5. Écrans attendus
+### Participant
+
+1. Ouvrir le lien ou scanner le QR code.
+2. Choisir son équipe ; le choix est mémorisé sur l’appareil (stockage local, facultatif).
+3. Voir en priorité le **prochain match** : adversaire, heure, terrain, poule ou libellé du match de classement, compte à rebours.
+4. Suivre ses matchs, ses résultats et le classement, mis à jour en direct.
+
+### Salle
+
+Ouvrir l’écran TV (`/t/:slug/tv`) sur l’ordinateur relié à la télévision, passer en plein écran.
+
+---
+
+## 5. Écrans
 
 ### Public
 
-- `/t/[slug]` : présentation du tournoi, choix de l'équipe, calendrier général, classements.
-- `/t/[slug]/teams/[teamSlug]` : tableau de bord de l'équipe.
-- États : chargement, tournoi non publié, introuvable, aucun match, match reporté, connexion perdue.
+| Route | Contenu |
+| --- | --- |
+| `/` | Page d’accueil (présentation, accès organisateur, démo) |
+| `/demo` | Match de démonstration temps réel, QR code (adresse du réseau local en développement) |
+| `/login` | Connexion Google uniquement |
+| `/t/:slug` | Tournoi : choix d’équipe, calendrier filtrable par poule (`?poule=…`), classements |
+| `/t/:slug/teams/:teamSlug` | Page équipe : prochain match, à venir, résultats, classement |
+| `/t/:slug/tv` | Écran TV 16:9 |
 
-**Carte « Prochain match » :** adversaire, date/heure, terrain, statut et délai restant. Si aucun match futur n'existe, afficher un message explicite et les résultats.
+**Page tournoi.** Bandeau aux couleurs du tournoi, badge « En direct » ou « Hors ligne ». Calendrier : heure, affiche, terrain, poule ou libellé (« Finale », « Places 3 et 4 », « Demi-finale »), état, score. Classements de poule (J, V, N, D, Diff., Pts) ; pendant la phase de classement, ils sont remplacés par le **classement du tournoi** provisoire (« en lice pour les places 1 à 4 »), puis par le **classement final**.
 
-**Liste des matchs :** date/heure, adversaire, terrain, état et score éventuel. Une équipe ne doit pas apparaître comme jouant contre elle-même.
+**Page équipe.** Carte « Prochain match » (en cours, prévu, reporté). Si l’équipe a fini ses matchs de poule et que la phase de classement n’est pas encore générée : « Phase de classement à venir — encore N matchs ; l’adversaire, le terrain et l’horaire seront annoncés à la fin des poules / du tour N ». « Plus aucun match prévu » seulement quand c’est vrai.
 
-### Administration
+**Écran TV.** Sans défilement, taille de texte proportionnelle à l’écran (conçu pour 1920×1080, valable en 720p et 4K). Trois colonnes :
+- *Sur les terrains* : un terrain par ligne (en cours, prochain, ou libre), puis *À suivre* ;
+- *Classements* en rotation automatique (toutes les 12 s), ou les matchs du tour de classement en cours, ou le classement final ;
+- *Derniers résultats*, QR code vers la page publique, puis la marque « tournio. by rfonline ».
+En-tête : nom du tournoi, horloge dans le fuseau du tournoi, état de connexion, bouton plein écran. L’écran est maintenu allumé (Wake Lock) quand le navigateur le permet.
 
-- `/login` : connexion.
-- `/dashboard` : tournois de l'organisateur.
-- `/dashboard/tournaments/new` : création.
-- `/dashboard/tournaments/[id]` : aperçu et configuration.
-- Sous-vues : équipes, poules, terrains, calendrier, résultats, classement, publication.
+### Organisateur
 
-L'interface doit rester utilisable au clavier, afficher les erreurs de validation près des champs et demander confirmation avant les actions destructrices.
+| Route | Contenu |
+| --- | --- |
+| `/dashboard` | Mes tournois |
+| `/dashboard/tournaments/new` | Création (nom, sport, lien public, lieu, fuseau, début, fin) |
+| `/dashboard/tournaments/:id` | Configuration et suivi, en onglets |
 
-## 6. Formats et règles sportives
+Le dashboard d’un tournoi adopte le thème de ce tournoi. Navigation au clavier, confirmations avant les actions destructrices (bulle de confirmation sur la corbeille, confirmations de publication, archivage, tours).
 
-### MVP : poules round-robin
+---
 
-- Chaque équipe rencontre une fois les autres équipes de sa poule (aller simple).
-- Pour une poule de `n` équipes, le nombre de matchs est `n × (n - 1) / 2`.
-- Exemple : 3 poules de 4 équipes → 3 × 6 = **18 matchs**.
-- Supporter un nombre impair d'équipes avec des tours de repos.
-- Interdire les doublons de rencontre dans une même phase, sauf option future explicite.
+## 6. Configuration d’un tournoi
 
-### Score et classement
+### Paramètres
 
-Le modèle doit permettre des **règles configurables par tournoi**, sans figer le volley comme seul sport. Pour le MVP, prévoir un mode simple :
+- **Informations** : nom, sport, identifiant du lien public, lieu, fuseau horaire IANA, début, fin. Une heure inexistante ou ambiguë (nuit du changement d’heure) est refusée avec un message clair.
+- **Apparence** : 8 thèmes (Tournio, Sable, Forêt, Océan, Contraste élevé, Nuit, Halloween, Stade), clairs ou sombres, puis couleur principale et couleur d’accent personnalisables. Toutes les nuances dérivées garantissent un contraste AA ; une couleur trop claire garde sa teinte avec un texte noir. Aperçu en direct. Modifiable à tout moment avant l’archivage ; les spectateurs voient le changement en direct.
 
-- score numérique de chaque équipe ;
-- résultat gagné / perdu / nul si autorisé ;
-- points de classement configurables pour victoire, nul et défaite ;
-- départage déterministe : points de classement, différence de scores, scores marqués, puis ordre stable documenté.
+### Équipes et poules
 
-Les scores par set, les tie-breaks sportifs particuliers et les règles complexes de départage sont hors MVP. L'organisateur doit pouvoir corriger un score, ce qui recalcule immédiatement le classement.
+- **Ajouter une équipe** : le nom seul ; l’identifiant du lien est généré (suffixe `-2`, `-3`… en cas de doublon).
+- **Équipes de test** : génération de 1 à 64 équipes aux noms aléatoires et uniques (« Les Faucons », « Les Ours bleus »…), en une opération.
+- **Ajouter une poule** : nom proposé automatiquement si le champ est vide (Poule A, B, C… puis AA).
+- **Répartir au hasard** : toutes les équipes (équilibre à une équipe près, hasard cryptographique) ou seulement les équipes sans poule (vers les plus petites poules). La zone « Sans poule » liste les équipes à placer.
+- **Glisser-déposer** (poignée ⠿) : d’une liste ou d’une poule vers une poule ou « Sans poule » ; souris, appui long sur téléphone, clavier (Espace, flèches, Espace, Échap) avec annonces pour les lecteurs d’écran. Affichage immédiat, rétabli si le serveur refuse.
+- **Renommer** équipes, poules et terrains d’un clic (Entrée ou F2 au clavier ; Entrée enregistre, Échap annule). Le renommage garde l’identifiant du lien et reste permis après publication, jusqu’à l’archivage.
+- **Supprimer** : corbeille avec bulle de confirmation, seulement sur un brouillon sans calendrier.
 
-## 7. Planification des matchs
+### Terrains
 
-### Entrées
+- Nom proposé automatiquement (Terrain 1, 2…).
+- Un terrain est **disponible pendant toute la période du tournoi** ; l’organisateur ne saisit que les **indisponibilités** (fenêtre modale). Les indisponibilités se cumulent et se fusionnent ; « Rendre disponible » annule une indisponibilité, aussi après publication.
+- Quand les dates du tournoi changent, les indisponibilités sont conservées et le reste suit la nouvelle période.
 
-- Matchs générés par poule.
-- Terrains disponibles et leurs plages horaires.
-- Heure de début, durée estimée d'un match et intervalle de transition.
-- Repos minimal d'une équipe entre deux matchs.
-- Fuseau horaire du tournoi (identifiant IANA, par ex. `Europe/Brussels`).
+### Format et règles
+
+**Format** (obligatoire, vide à la création ; le calendrier ne peut pas être généré tant qu’il n’est pas choisi) :
+
+| Format | Principe | Matchs de classement par équipe | Condition |
+| --- | --- | --- | --- |
+| Poules uniquement | Classement par poule | 0 | — |
+| Un match par rang | Les deux meilleurs premiers jouent la finale, etc. | 1 | nombre pair, ou groupe incomplet |
+| Croisé en deux tours | Groupes de 4 : 1re–4e et 2e–3e, puis gagnants et perdants pour leurs places | 2 | multiple de 4, ou groupe incomplet |
+| Tableau complet | Gagnants contre gagnants, perdants contre perdants | log₂ N | 4, 8, 16 ou 32 équipes |
+
+Chaque carte de format affiche : matchs par équipe (« 5 matchs par équipe — 3 en poule + 2 en classement »), durée estimée, heure de fin, alerte si la fin prévue est dépassée. Les formats incompatibles sont grisés avec leur raison. Sous les cartes : le détail du format choisi (fonctionnement, exemple avec les vraies poules, répartition poules / classement).
+
+**Conseils** : pour le format choisi, chaque nombre de poules est simulé (équipes réparties au plus juste) ; Tournio conseille d’**ajouter des poules** (le plus petit ajout qui fait tenir le tournoi), d’**en enlever** (s’il reste de la marge, sans descendre sous 3 équipes par poule), ou d’**ajouter des terrains / raccourcir les matchs** si rien ne tient. Un tableau compare toutes les options.
+
+**Options** : groupe incomplet autorisé (voir § 7) ; pause minimale entre les tours de classement (0 à 600 min, après les poules comprise).
+
+Le format reste modifiable après publication, tant que la phase de classement n’a pas commencé.
+
+**Règles** (verrouillées une fois le calendrier créé) : durée d’un match, transition entre deux matchs sur un terrain, repos minimal d’une équipe, matchs nuls autorisés ou non, points victoire / nul / défaite, **horaires alignés**, départage à égalité de points (« points marqués d’abord » ou « différence d’abord »).
+
+---
+
+## 7. Règles sportives
+
+### Poules
+
+- Tous contre tous, aller simple (méthode du cercle, ordre canonique, repos pour les poules impaires) : `n × (n − 1) / 2` matchs par poule.
+- Classement recalculé à la demande depuis les seuls résultats validés : points, puis départage choisi (points marqués ou différence), puis l’autre critère, puis un ordre stable.
+
+### Phase de classement
+
+- **Classement général** à l’issue des poules : tous les premiers, puis tous les deuxièmes… ; à rang égal, la meilleure moyenne par match (points, puis différence, puis points marqués).
+- Moteur unique : tableau de classement par blocs de 2ᵏ places. Dans un bloc, les gagnants d’un tour se disputent la moitié haute des places, les perdants la moitié basse, jusqu’aux matchs qui fixent chaque place.
+- **Groupe incomplet** (option, formats « un match par rang » et « croisé ») : les dernières équipes du classement général jouent des **mini-championnats à 3** (3 matchs, chacune en joue 2), pour que **chaque équipe joue le même nombre de matchs** :
+  - croisé, reste 3 → 1 groupe de 3 ; reste 2 → les 6 dernières en 2 groupes de 3 ; reste 1 → les 9 dernières en 3 groupes de 3 ; 5 équipes → 1 groupe de 3 et un aller-retour ; 2 équipes → aller-retour ;
+  - un match par rang, nombre impair → les 3 dernières en mini-championnat (2 matchs au lieu de 1 : personne ne joue moins).
+  - Un mini-championnat se classe aux victoires, puis à la différence, puis aux points marqués, puis au classement général.
+- Un match de classement **ne peut pas finir à égalité** (contrôle serveur et base).
+- Les tours sont lancés par l’organisateur (onglet Résultats) ; le tour 1 dès que les poules sont jouées, le tour N+1 dès que le tour N est terminé. Un tour pas encore commencé peut être annulé.
+- Verrous : dès le tour 1, les matchs de poule sont figés ; un tour est figé dès que le suivant existe ; un match de classement ne peut pas être annulé (seulement reporté).
+- Le tournoi ne peut être terminé que lorsque toutes les places sont jouées (ou en « poules uniquement » quand tous les matchs sont clos).
+
+---
+
+## 8. Planification
 
 ### Contraintes dures
 
-- Aucun terrain ne peut accueillir deux matchs dont les créneaux se chevauchent.
-- Une équipe ne peut pas jouer deux matchs simultanément.
-- Un match ne peut pas commencer hors d'une plage disponible.
-- Le repos minimal configuré doit être respecté.
-- Les matchs annulés ne bloquent pas un terrain.
+- Un terrain n’accueille pas deux matchs qui se chevauchent, transition comprise (intervalles semi-ouverts).
+- Une équipe ne joue pas deux matchs sans le repos minimal (compté depuis la fin du match).
+- Un match est entièrement dans une plage de disponibilité.
+- Deux équipes ne se rencontrent qu’une fois par poule (une rencontre de classement peut rejouer une affiche de poule).
+- Les matchs annulés ne bloquent ni terrain ni équipe.
 
-### Comportement attendu
+### Moteur
 
-- Algorithme **déterministe** à entrées identiques ; priorité à une solution simple et testable plutôt qu'à une optimisation complexe.
-- Prévisualiser les affectations avant sauvegarde.
-- Si toutes les contraintes ne peuvent pas être satisfaites, **ne pas publier un calendrier invalide** : retourner les conflits et proposer de modifier les paramètres.
-- Les modifications manuelles sont soumises aux mêmes validations.
-- Une régénération ne doit pas écraser silencieusement les scores ou les modifications déjà validées : exiger une confirmation et définir une stratégie explicite.
-- Stocker les instants en UTC, afficher dans le fuseau horaire du tournoi.
+- Placement **déterministe et borné** : à chaque étape, le match qui peut commencer le plus tôt, sur le premier terrain disponible.
+- Impossibilités démontrées (capacité, durée des créneaux, horizon d’une équipe) distinguées d’une recherche infructueuse ; aucun calendrier partiel ou invalide n’est enregistré.
+- **Horaires alignés** (option) : tous les matchs démarrent sur une grille commune à tous les terrains, de pas « durée + plus long des délais (transition, repos) », ancrée au début du tournoi.
+- Instants stockés en UTC, affichés dans le fuseau du tournoi.
 
-## 8. États métier
+### Calendrier
 
-### Tournoi
+- **Prévisualisation** sans écriture, puis enregistrement de la version prévisualisée (refus si le tournoi a changé entre-temps).
+- La prévisualisation et le calendrier enregistré montrent la **phase de classement prévisionnelle** : tours numérotés, affiches indicatives (« 1er Poule A – 2e Poule B », « Vainqueur du match 3 – Vainqueur du match 4 »), terrains et horaires estimés après les poules et la pause.
+- Déplacement manuel d’un match prévu ou reporté, revalidé par les mêmes contraintes.
+- Après publication, seuls restent modifiables : noms des équipes, poules et terrains ; apparence ; format (avant la phase de classement) ; levée d’indisponibilités ; déplacements de matchs.
+- Les tours de classement sont placés après le dernier match planifié, plus la pause entre les tours ; s’il manque des créneaux, l’erreur l’explique.
 
-`DRAFT` → `PUBLISHED` → `COMPLETED` → `ARCHIVED`.
+---
 
-### Match
+## 9. Déroulement et résultats
 
-`SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `POSTPONED`, `CANCELLED`.
+- Onglet Résultats : matchs regroupés **par créneau** (« 09:35 · 3 matchs ») ; filtre « À saisir / Tous » (`?matchs=tous`).
+- **Lancer les N matchs** d’un créneau en une opération (tout ou rien, une seule mise à jour publique).
+- Par match : marquer en cours, remettre à « prévu », valider le score (0 à 999), reporter (libère l’horaire et le terrain), annuler, rétablir (reprend son ancien créneau s’il est libre), corriger un résultat (le match reste terminé, le classement est recalculé).
+- Carte « Phase de classement » : étape suivante, attente, génération et annulation de tour, classement final.
+- **Terminer le tournoi**, puis **archiver** (lecture seule ; les pages publiques restent consultables).
 
-- Un score validé appartient normalement à un match `COMPLETED`.
-- Un match `CANCELLED` n'entre pas dans le classement.
-- Un match `POSTPONED` n'affiche pas un ancien horaire comme confirmé.
-- Définir les transitions autorisées et les vérifier côté API.
+### États
 
-## 9. Modèle de données conceptuel
+- Tournoi : `DRAFT` → `PUBLISHED` → `COMPLETED` → `ARCHIVED`.
+- Match : `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `POSTPONED`, `CANCELLED` ; transitions vérifiées côté serveur.
+- Un score n’est public qu’une fois validé ; un match annulé ne compte pas au classement ; un match reporté n’affiche pas d’horaire.
 
-- **User** : `id`, `email`, `passwordHash` ou identifiant de fournisseur, dates.
-- **Tournament** : `id`, `ownerId`, `name`, `slug`, `sport`, `location`, `timezone`, `startsAt`, `endsAt`, `status`, `publishedAt`, dates.
-- **Court** : `id`, `tournamentId`, `name`, `sortOrder`.
-- **CourtAvailability** : `id`, `courtId`, `startsAt`, `endsAt`.
-- **Team** : `id`, `tournamentId`, `name`, `slug`, dates.
-- **Pool** : `id`, `tournamentId`, `name`, `sortOrder`.
-- **PoolTeam** : `poolId`, `teamId` (unicité selon la phase MVP).
-- **Match** : `id`, `tournamentId`, `poolId`, `homeTeamId`, `awayTeamId`, `courtId?`, `startsAt?`, `endsAt?`, `status`, `homeScore?`, `awayScore?`, `resultValidatedAt?`, dates.
-- **TournamentRules** : `tournamentId`, `matchDurationMinutes`, `transitionMinutes`, `minimumRestMinutes`, `allowDraw`, `pointsWin`, `pointsDraw`, `pointsLoss`, `tieBreakOrder`.
+---
 
-### Contraintes importantes
+## 10. Modèle de données (schéma PostgreSQL `tournio`)
 
-- Toutes les références entre équipes, poules, terrains et matchs doivent appartenir au **même tournoi**.
-- `homeTeamId != awayTeamId`.
-- Slug de tournoi unique globalement ; slug d'équipe unique **dans son tournoi**.
-- Scores non négatifs ; validation cohérente avec le statut et l'autorisation des matchs nuls.
-- Index sur `tournamentId`, `startsAt`, `status`, `teamId` et clés de jointure.
-- Préférer des identifiants opaques (UUID/CUID) ; ne jamais faire reposer la sécurité sur leur imprévisibilité.
-- Les classements peuvent être calculés à la demande pour le MVP ; éviter de stocker une deuxième vérité désynchronisable.
+- **User, Session, Account, Verification** (Better Auth).
+- **Tournament** : `id`, `owner_id`, `name`, `slug` (unique), `sport`, `location`, `timezone`, `starts_at`, `ends_at`, `status`, `published_at`, `theme`, `primary_color`, `accent_color`, `version`, dates.
+- **TournamentRules** : `match_duration_minutes`, `transition_minutes`, `minimum_rest_minutes`, `allow_draw`, `aligned_slots`, `points_win`, `points_draw`, `points_loss`, `tie_break_order`, `final_format` (null tant que non choisi), `round_break_minutes`, `allow_incomplete`.
+- **Team** : `id`, `tournament_id`, `name`, `slug` (unique dans le tournoi).
+- **Pool**, **PoolTeam** (une poule au plus par équipe).
+- **Court**, **CourtAvailability** (plages disponibles, sans chevauchement, dans les dates du tournoi).
+- **Match** : `id`, `tournament_id`, `phase` (`POOL` ou `FINAL`), `pool_id` (null en phase de classement), `final_round`, `place_from`, `place_to`, `slot`, `home_team_id`, `away_team_id`, `court_id`, `starts_at`, `ends_at`, `status`, `home_score`, `away_score`, `result_validated_at`, `version`.
+- **DemoMatch** (démonstration).
 
-## 10. API indicative
+Contraintes en base : références au même tournoi, équipes distinctes, scores non négatifs, cohérence score / état, cohérence des phases, couleurs `#rrggbb`, formats connus, pas de nul en phase de classement, un tour de classement ne peut être généré deux fois. Les classements ne sont jamais stockés : ils sont recalculés.
 
-Convention : `/api/v1`, JSON, erreurs structurées, validation stricte des entrées.
+---
+
+## 11. API (`/api/v1`, JSON, validation Zod stricte)
 
 ### Publique (lecture seule)
 
-- `GET /tournaments/:slug`
-- `GET /tournaments/:slug/teams`
-- `GET /tournaments/:slug/teams/:teamSlug`
-- `GET /tournaments/:slug/matches`
-- `GET /tournaments/:slug/standings`
+- `GET /tournaments/:slug` — instantané public (liste blanche stricte : ni propriétaire, ni e-mail, ni disponibilités) : tournoi, apparence, poules, équipes, terrains, matchs, classements, `placement { format, rounds, ranking, standing }`.
+- `GET /tournaments/:slug/events` — flux SSE : `ready`, `tournament.updated { version }`, `ping` (15 s), `retry`, `unavailable`, `removed`.
 
-### Authentifiée (organisateur)
+### Organisateur (session + contrôle d’origine)
 
-- `POST /admin/tournaments`
-- `PATCH /admin/tournaments/:id`
-- `POST /admin/tournaments/:id/teams`
-- `PATCH /admin/tournaments/:id/teams/:teamId`
-- `POST /admin/tournaments/:id/pools`
-- `POST /admin/tournaments/:id/schedule/preview`
-- `POST /admin/tournaments/:id/schedule/commit`
-- `PATCH /admin/tournaments/:id/matches/:matchId`
-- `PUT /admin/tournaments/:id/matches/:matchId/result`
-- `POST /admin/tournaments/:id/publish`
-- `POST /admin/tournaments/:id/archive`
+- `GET|POST /admin/tournaments` ; `GET|PATCH /admin/tournaments/:id` (commandes de configuration : informations, règles, équipes, équipes en lot, poules, tirage au sort, terrains, disponibilités et indisponibilités, apparence, format).
+- `GET|POST /admin/tournaments/:id/schedule` (prévisualisation ; générer, effacer, déplacer, publier, générer / annuler un tour de classement, terminer, archiver).
+- `POST /admin/tournaments/:id/matches` (lancement groupé) ; `POST /admin/tournaments/:id/matches/:matchId` (état et résultat d’un match).
+- `GET /health` — sonde de santé (200 si PostgreSQL répond, 503 sinon).
 
-Ces routes sont une proposition de contrat, pas une obligation de nommage. Documenter les schémas de requête/réponse et les codes d'erreur. Prévoir pagination ou filtres pour les calendriers volumineux.
+Chaque écriture porte une **version attendue** (tournoi, ou match pour les résultats) : une version périmée est refusée (409). Erreurs : `{ error: { code, message, fieldErrors?, requestId } }` ; 400, 401, 403 (origine), 404, 409, 422, 503. Détail : `docs/api/organisation.md`.
 
-## 11. Temps réel et cohérence
+---
 
-- Événements à diffuser : `match.updated`, `result.updated`, `standings.updated`, `tournament.updated`.
-- Les événements ne doivent contenir que des données publiquement consultables pour les clients publics.
-- Après reconnexion, recharger l'état serveur : les événements temps réel ne sont pas la source de vérité.
-- Repli par polling (par exemple toutes les 15–30 secondes) si le canal temps réel est indisponible.
-- Prévenir les écrasements concurrents côté administration (champ `updatedAt` ou version optimiste).
-- Les mises à jour de score et les éventuelles opérations dépendantes doivent être atomiques.
+## 12. Temps réel et cohérence
 
-## 12. Stack technique retenue
+- Triggers PostgreSQL sur `tournaments` et `matches` → `NOTIFY tournio_tournaments` ; une connexion `LISTEN` par processus ; diffusion SSE après commit.
+- Les événements ne portent que la version : le client recharge l’instantané public, seule source de vérité, et ignore une version plus ancienne.
+- Coupure détectée par l’erreur du flux, l’événement `offline` ou 40 s sans `ping` : polling toutes les 20 s, puis réouverture du flux.
+- Si l’instantané reçu ne correspond plus au code de la page (déploiement), la page se recharge (au plus une fois par minute).
+- Plafond de flux par processus (`TOURNIO_MAX_STREAMS`, 2000) ; une seule lecture de version par changement, partagée par tous les flux.
+- Transactions avec verrou du tournoi (`SELECT … FOR UPDATE`) ; versions optimistes contre les écrasements concurrents.
 
-Architecture du dépôt, conformément aux choix validés :
+---
 
-- **Frontend** : Next.js (App Router), React, TypeScript.
-- **Backend** : Route Handlers Next.js, API REST côté serveur Node.js.
-- **Base** : PostgreSQL privé, Prisma 7 et migrations versionnées.
-- **UI** : CSS et composants React accessibles et responsive.
-- **Authentification** : Better Auth, sessions en base, cookies HTTP-only, connexion Google et connexion locale par mot de passe.
-- **Validation** : schémas Zod partagés ; conversion des fuseaux avec Temporal.
-- **Temps réel** : PostgreSQL `LISTEN/NOTIFY`, Server-Sent Events et polling de secours.
-- **Tests** : unitaires et intégration API ; E2E navigateur à compléter.
+## 13. Stack technique
 
-**Attention au déploiement :** choisir un runtime capable de maintenir les flux SSE et une connexion PostgreSQL de session pour `LISTEN`. Documenter les origines autorisées, l'authentification et les variables d'environnement sur la cible retenue.
+- **Next.js 16** (App Router, Route Handlers, Node.js), **React 19**, TypeScript.
+- **Mantine 9** (`@mantine/core`, `@mantine/notifications`), **nuqs** (état d’URL), **@dnd-kit/core** (glisser-déposer), `qrcode`.
+- **PostgreSQL** privé, **Prisma 7** (adaptateur `pg`), migrations versionnées.
+- **Better Auth** : sessions en base, cookies HTTP-only, Google uniquement (mot de passe réservé aux tests isolés, `TOURNIO_ISOLATED_TEST`).
+- **Zod 4**, **Temporal** (fuseaux horaires).
+- Domaine métier pur et testé dans `src/lib/domain/` (round-robin, planification, classements, phase de classement, disponibilités, estimations, conseils, tirage).
 
-## 13. Sécurité, confidentialité et accessibilité
+---
 
-- Contrôle d'accès propriétaire sur chaque route de mutation et chaque ressource enfant.
-- Mots de passe hachés avec une méthode adaptée si authentification locale ; cookies sécurisés, protection CSRF selon le mécanisme retenu.
-- Limitation de débit sur login et API exposées ; journalisation des erreurs sans données sensibles.
-- Validation serveur systématique, protections contre XSS et injections.
-- Ne pas publier d'e-mails, téléphones ou autres données personnelles des participants.
-- QR codes publics : n'inclure aucune information sensible.
-- Accessibilité visée : WCAG 2.2 AA (contrastes, navigation clavier, annonces de changements importantes).
-- Respect du RGPD : minimisation, durée de conservation documentée, suppression/export à définir avant production.
+## 14. Sécurité, confidentialité, accessibilité
 
-## 14. Critères d'acceptation du MVP
+- Contrôle propriétaire sur chaque route et chaque ressource enfant ; contrôle d’origine (CSRF) sur toutes les écritures.
+- Limitation de débit Better Auth ; journalisation sans données sensibles.
+- En-têtes : HSTS, `nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`, `Permissions-Policy`.
+- Aucune donnée personnelle de participant publiée ; instantané public en liste blanche.
+- **Accessibilité** : WCAG 2.1 AA vérifiée par axe-core sur tout le parcours (contrastes, noms accessibles, clavier), contraste garanti pour tous les thèmes et couleurs, navigation clavier complète (onglets ARIA, renommage, glisser-déposer annoncé), préférence de mouvement réduit respectée.
 
-1. Un organisateur peut créer un tournoi en brouillon avec 12 équipes, 3 poules de 4 et 3 terrains.
-2. Le moteur produit exactement 18 rencontres distinctes, sans équipe contre elle-même.
-3. Aucun match planifié ne viole les contraintes de terrain, d'équipe, de disponibilité et de repos.
-4. Si la planification est impossible, l'interface explique les conflits et n'enregistre pas de calendrier invalide.
-5. Un tournoi non publié n'est pas consultable par un visiteur.
-6. Une fois publié, son URL publique fonctionne sans connexion.
-7. Un participant peut sélectionner son équipe et retrouver cette sélection après rechargement sur le même appareil.
-8. La page équipe montre le prochain match avec adversaire, horaire, terrain et statut.
-9. Une saisie ou correction de résultat met à jour le score et le classement sans rechargement manuel lorsque le temps réel fonctionne ; sinon via polling.
-10. Un visiteur ne peut ni modifier les scores ni accéder aux endpoints d'administration.
-11. Deux organisateurs distincts ne peuvent pas modifier les tournois l'un de l'autre.
-12. L'application reste lisible et utilisable sur smartphone ; dates affichées dans le fuseau du tournoi.
+---
 
-## 15. Tests à implémenter
+## 15. Déploiement et exploitation
 
-### Unitaires
+- Coolify (Nixpacks, Node 24), démarrage `next start --hostname 0.0.0.0 --port 3000`, healthcheck `/api/health`, une instance.
+- Avant chaque déploiement : `npm run db:migrate`. **Jamais `prisma db push`** (il ignore triggers et contraintes, et désynchronise l’historique) ; une base déjà touchée se répare avec `scripts/reconcile-migrations.ts`.
+- Variables : `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PG_SSL_CA_FILE` (facultatif), `TOURNIO_MAX_STREAMS` (facultatif). Ne jamais définir `TOURNIO_ISOLATED_TEST` en production.
+- Capacité mesurée (un processus, poste local) : 1000 spectateurs en direct, diffusion d’un score en moins d’une seconde (p95) ; ~1500 ouvertures de page par seconde. Détail : `docs/deploiement.md`.
 
-- Génération round-robin pour tailles paires et impaires.
-- Unicité des rencontres et nombre de matchs attendu.
-- Détection de chevauchement de terrain et de double affectation d'équipe.
-- Respect des disponibilités et du repos minimal.
-- Calcul de classement, égalités et départages.
-- Transitions de statut, scores invalides, matchs annulés.
+---
 
-### Intégration
+## 16. Qualité et tests
 
-- Isolation entre tournois et propriétaires.
-- Publication / dépublication selon règles retenues.
-- Saisie et correction de résultat ; recalcul du classement.
-- Concurrence de modification ; intégrité référentielle.
+`npm run test:local` crée un PostgreSQL Docker jetable, applique les migrations, compile la production et exécute :
+- **unitaires** (`test:unit`) : round-robin, placement, validation, classements, transitions, phase de classement (tous les nombres d’équipes de 2 à 40 : chaque équipe joue le même nombre de matchs), disponibilités, estimations, conseils, tirage, thèmes et contrastes, horaires alignés, TV ;
+- **métier** (`test:integration`, `test:placement`) : isolation, CSRF, concurrence, calendrier, publication, résultats, phase de classement (complète et incomplète), lancement groupé, verrous ;
+- **OAuth** (`test:google`), **temps réel** (`test:realtime`) ;
+- **navigateur** (`test:e2e`, Playwright, Chromium et WebKit iPhone) : parcours complet au clavier, onglets cochés, glisser-déposer, renommage, thèmes (sombre compris), page publique sur iPhone dans un autre fuseau sans stockage local, perte et reprise du réseau, écran TV 1080p / 720p, accessibilité axe-core et contraste au survol, aucune erreur console ;
+- **capacité** (`test:capacity`).
 
-### E2E
+---
 
-- Parcours complet organisateur : création → équipes → poules → génération → publication → résultats.
-- Parcours public sur viewport mobile : sélection équipe → prochain match → résultats.
-- Cas de calendrier impossible et d'absence de connexion temps réel.
+## 17. Critères d’acceptation (atteints)
 
-## 16. Livrables attendus de Codex
+1. Un organisateur crée un tournoi de 12 équipes, 3 poules de 4 et 3 terrains, choisit son format et génère 18 matchs valides.
+2. Aucun match ne viole les contraintes de terrain, d’équipe, de disponibilité et de repos ; une planification impossible est expliquée et rien n’est enregistré.
+3. Le calendrier ne peut pas être généré tant que le format n’est pas choisi.
+4. Un brouillon n’est pas consultable ; un tournoi publié l’est sans connexion, sur téléphone, dans le fuseau du tournoi.
+5. Un participant retrouve son équipe et son prochain match ; il est prévenu des matchs de classement à venir.
+6. Un score saisi apparaît en direct sur les téléphones et la TV, ou par polling en cas de coupure.
+7. La phase de classement fait jouer à chaque équipe le même nombre de matchs et produit un classement final complet.
+8. Un visiteur ne peut rien modifier ; deux organisateurs ne peuvent pas modifier les tournois l’un de l’autre.
+9. L’application est accessible (WCAG 2.1 AA) et utilisable au clavier.
 
-- Code source organisé, typé, lisible et documenté.
-- Schéma Prisma et migrations reproductibles.
-- Jeu de données de démonstration (12 équipes, 3 poules, 3 terrains).
-- Variables d'environnement décrites dans `.env.example`, sans secrets.
-- README : prérequis, installation, démarrage, migrations, seed, tests, build et déploiement.
-- Tests automatisés des règles métier critiques.
-- Documentation courte des décisions techniques et des limites connues.
-- UI responsive avec états vides, chargement et erreurs.
+---
 
-## 17. Ordre d'implémentation conseillé
+## 18. Limites connues
 
-1. Initialiser / inspecter le dépôt, fixer les conventions et l'architecture.
-2. Créer le schéma de données, migrations et seed.
-3. Implémenter l'authentification et l'isolation des organisateurs.
-4. Implémenter les CRUD tournoi, terrains, équipes et poules.
-5. Développer **et tester** le moteur de génération / planification indépendant de l'UI.
-6. Ajouter la prévisualisation et la publication du calendrier.
-7. Développer les pages publiques mobile-first et la sélection d'équipe persistante.
-8. Ajouter les résultats, classements et rafraîchissement.
-9. Ajouter les QR codes, contrôles de sécurité et tests E2E.
-10. Finaliser la documentation et les scripts de déploiement.
+- Les estimations supposent des terrains disponibles sans interruption entre le début et la fin du tournoi (indisponibilités non prises en compte).
+- Avant le tour 1, une page équipe annonce le nombre de tours du format, sans tenir compte d’un éventuel groupe incomplet.
+- Une seule instance validée ; capacité mesurée en local, à confirmer en production.
+- Connexion Google réelle et rendu sur un vrai téléphone vérifiés manuellement.
+- L’adaptateur Prisma émet un avertissement `pg` sans effet (requêtes concurrentes dans une transaction).
 
-## 18. Instructions de travail pour Codex
+## 19. Évolutions envisagées
 
-> Tu développes **Tournio** en suivant ce cahier des charges. Commence par inspecter le dépôt et expliquer brièvement l'architecture existante. Propose un plan d'implémentation par étapes, puis réalise le MVP de façon incrémentale. Priorise la fiabilité des règles métier, la sécurité des mutations, l'expérience mobile et les tests. Ne développe pas les fonctionnalités hors MVP. Ne supprime pas de code existant sans justification. Après chaque étape, exécute les vérifications pertinentes (lint, typecheck, tests, build) et signale précisément ce qui fonctionne et ce qui reste à faire. Si un choix métier bloque l'implémentation, pose une question ciblée plutôt que d'inventer une règle silencieusement.
-
-## 19. Décisions à confirmer
-
-Ces éléments sont volontairement paramétrables ou non figés :
-
-- Sport(s) du premier tournoi pilote et mode de score exact (points simples ou sets).
-- Nombre maximal d'équipes, de terrains et de matchs.
-- Répartition manuelle ou automatique des équipes en poules (manuel en MVP).
-- Politique de modification du calendrier une fois les matchs commencés.
-- Méthode d'authentification et fournisseur d'hébergement.
-- Règles de départage spécifiques aux disciplines.
-- Gestion des matchs nuls et des forfaits.
-
-**Règle de priorité :** si une décision non confirmée est indispensable, implémenter un comportement simple, configurable et documenté, ou demander confirmation avant de coder une logique difficile à modifier.
+- Notifications push aux appareils qui suivent une équipe.
+- Aller-retour optionnel quand deux équipes restent seules en « un match par rang ».
+- Décalage automatique des matchs après un retard ; forfaits.
+- Plusieurs organisateurs, rôle arbitre.

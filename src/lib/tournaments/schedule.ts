@@ -46,6 +46,8 @@ export function planSchedule(configuration: TournamentConfiguration): SchedulePl
   const unassigned = configuration.teams.filter((team) => !configuration.pool_teams.some((row) => row.team_id === team.id));
   if (unassigned.length) reasons.push(`${unassigned.length} équipe${unassigned.length > 1 ? 's ne sont' : ' n’est'} dans aucune poule : ${unassigned.map((team) => team.name).join(', ')}.`);
   if (!configuration.courts.length) reasons.push('Ajoutez au moins un terrain.');
+  // Le format conditionne la suite du tournoi (et sa durée) : il doit être choisi avant le calendrier.
+  if (!configuration.rules.final_format) reasons.push('Choisissez le format du tournoi dans l’onglet Format et règles.');
   else if (!configuration.availabilities.length) reasons.push('Définissez les disponibilités des terrains.');
   if (reasons.length) return { status: 'blocked', reasons };
 

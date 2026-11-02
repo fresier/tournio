@@ -10,7 +10,7 @@ export type SnapshotSource = {
   name: string; slug: string; sport: string; location: string; timezone: string;
   starts_at: Date | string; ends_at: Date | string; status: string; version: number;
   theme?: string; primary_color?: string | null; accent_color?: string | null;
-  rules: { allow_draw: boolean; points_win: number; points_draw: number; points_loss: number; tie_break_order: string[]; final_format?: string } | null;
+  rules: { allow_draw: boolean; points_win: number; points_draw: number; points_loss: number; tie_break_order: string[]; final_format?: string | null } | null;
   pools: { id: string; name: string }[];
   teams: { id: string; name: string; slug: string }[];
   pool_teams: { pool_id: string; team_id: string }[];
@@ -72,11 +72,13 @@ function placementSummary(source: SnapshotSource, teamCount: number, tables: Sta
     .map((match) => {
       const homeWins = match.home_score! > match.away_score!;
       return { round: match.final_round!, placeFrom: match.place_from!, placeTo: match.place_to!, slot: match.slot ?? 0, home: match.home_team_id, away: match.away_team_id,
-        winner: homeWins ? match.home_team_id : match.away_team_id, loser: homeWins ? match.away_team_id : match.home_team_id };
+        winner: homeWins ? match.home_team_id : match.away_team_id, loser: homeWins ? match.away_team_id : match.home_team_id,
+        homeScore: match.home_score!, awayScore: match.away_score! };
     });
   const size = blockSize(format, teamCount);
+  const seeds = finals.length && size >= 2 ? overallSeeding(tables) : [];
   const standing = format !== 'none' && finals.length && size >= 2
-    ? provisionalRanking(overallSeeding(tables), size, played).map((row) => ({ team_id: row.team, place_from: row.placeFrom, place_to: row.placeTo }))
+    ? provisionalRanking(seeds, size, played).map((row) => ({ team_id: row.team, place_from: row.placeFrom, place_to: row.placeTo }))
     : null;
-  return { format, rounds: extraMatches(format, teamCount), ranking: format === 'none' ? null : finalRanking(played, teamCount), standing };
+  return { format, rounds: extraMatches(format, teamCount), ranking: format === 'none' ? null : finalRanking(played, teamCount, seeds, size), standing };
 }

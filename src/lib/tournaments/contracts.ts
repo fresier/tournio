@@ -45,7 +45,7 @@ const command = <T extends string, P extends z.ZodType>(operation: T, payload: P
 });
 export const configurationCommandSchema = z.discriminatedUnion('operation', [
   command('update_tournament', tournamentInputSchema), command('save_rules', rulesInputSchema),
-  command('create_team', teamInput), command('update_team', teamInput.extend({ id })), command('delete_team', resourceId),
+  command('create_team', teamInput), command('create_teams', z.strictObject({ teams: z.array(teamInput).min(1).max(64, '64 équipes au plus à la fois.') })), command('update_team', teamInput.extend({ id })), command('delete_team', resourceId),
   command('create_pool', namedInput), command('update_pool', namedInput.extend({ id })), command('delete_pool', resourceId),
   command('assign_team', z.strictObject({ team_id: id, pool_id: id.nullable() })),
   command('draw_pools', z.strictObject({ mode: z.enum(['all', 'unassigned']) })),
@@ -53,7 +53,7 @@ export const configurationCommandSchema = z.discriminatedUnion('operation', [
   command('create_availability', availabilityInput), command('delete_availability', resourceId),
   command('add_unavailability', unavailabilityInput), command('remove_unavailability', unavailabilityInput),
   command('update_appearance', appearanceInputSchema),
-  command('set_final_format', z.strictObject({ final_format: finalFormatSchema, round_break_minutes: z.number().int('Un nombre entier de minutes est requis.').min(0, 'Valeur positive ou nulle requise.').max(600, '10 heures maximum.') })),
+  command('set_final_format', z.strictObject({ final_format: finalFormatSchema, allow_incomplete: z.boolean().default(false), round_break_minutes: z.number().int('Un nombre entier de minutes est requis.').min(0, 'Valeur positive ou nulle requise.').max(600, '10 heures maximum.') })),
 ]);
 export type ConfigurationCommand = z.infer<typeof configurationCommandSchema>;
 
@@ -75,7 +75,7 @@ export const storedMatchSchema = z.object({
 export const tournamentSummarySchema = tournamentSchema.extend({ team_count: z.number(), pool_count: z.number(), court_count: z.number() });
 export const configurationSchema = z.object({
   tournament: tournamentSchema,
-  rules: rulesInputSchema.extend({ tournament_id: id, tie_break_order: z.array(z.string()), final_format: finalFormatSchema, round_break_minutes: z.number().int() }),
+  rules: rulesInputSchema.extend({ tournament_id: id, tie_break_order: z.array(z.string()), final_format: finalFormatSchema.nullable(), round_break_minutes: z.number().int(), allow_incomplete: z.boolean() }),
   teams: z.array(teamSchema), pools: z.array(namedSchema), courts: z.array(namedSchema),
   pool_teams: z.array(z.object({ tournament_id: id, pool_id: id, team_id: id })),
   availabilities: z.array(z.object({ id, tournament_id: id, court_id: id, starts_at: z.string(), ends_at: z.string() })),
@@ -142,3 +142,26 @@ export const startMatchesSchema = z.strictObject({
     .refine((rows) => new Set(rows.map((row) => row.id)).size === rows.length, 'Un même match est envoyé deux fois.'),
 });
 export type StartMatches = z.infer<typeof startMatchesSchema>;
+
+/** Identifiant libre : `base`, sinon `base-2`, `base-3`… (100 caractères au plus). */
+export function uniqueSlug(base: string, taken: readonly string[]) {
+  const used = new Set(taken);
+  if (!used.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, 100 - suffix.length).replace(/-$/, '')}${suffix}`;
+    if (!used.has(candidate)) return candidate;
+  }
+}
+
+const letters = (n: number): string => n < 26 ? String.fromCharCode(65 + n) : letters(Math.floor(n / 26) - 1) + letters(n % 26);
+/** Premier nom libre de la suite « Poule A », « Poule B »… (puis « Poule AA » au-delà de Z). */
+export function nextPoolName(taken: readonly string[]) {
+  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
+  for (let n = 0; ; n++) { const name = `Poule ${letters(n)}`; if (!used.has(name.toLowerCase())) return name; }
+}
+/** Premier nom libre de la suite « Terrain 1 », « Terrain 2 »… */
+export function nextCourtName(taken: readonly string[]) {
+  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
+  for (let n = 1; ; n++) { const name = `Terrain ${n}`; if (!used.has(name.toLowerCase())) return name; }
+}

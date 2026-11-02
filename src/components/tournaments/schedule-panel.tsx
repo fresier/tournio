@@ -1,8 +1,9 @@
 'use client';
 import { useState, type FormEvent } from 'react';
-import { Badge, Box, Button, Card, Group, List, ListItem, NativeSelect, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Badge, Box, Button, Card, Group, List, ListItem, NativeSelect, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { Field, FormFeedback } from '@/components/forms/field';
 import { placementLabel } from '@/lib/domain/placement';
+import { placementForecast } from '@/lib/tournaments/placement';
 import { Disclosure } from '@/components/ui/disclosure';
 import { scheduleCommandSchema, type ScheduleCommand, type SchedulePreview, type TournamentConfiguration } from '@/lib/tournaments/contracts';
 import { configurationRequest, FormError, schedulePreviewRequest } from '@/lib/tournaments/client';
@@ -57,7 +58,7 @@ export function SchedulePanel({ data, onChange }: { data: TournamentConfiguratio
     await command('move_match', { match_id: matchId, court_id: String(form.get('court_id')), starts_at: startsAt }, 'Match déplacé.');
   }
 
-  const list = (rows: Row[]) => <Stack component="ol" gap={6} p={0} m={0} style={{ listStyle: 'none' }}>{rows.map((row) => <Paper component="li" key={row.key} withBorder px="md" py="sm">
+  const list = (rows: Row[]) => <ol className="plain-list">{rows.map((row) => <li key={row.key}>
     <Group gap="md" wrap="wrap">
       <Text fw={800} w={110} style={{ fontVariantNumeric: 'tabular-nums' }}>{row.starts_at ? formatTime(row.starts_at) : '—'}</Text>
       <Text fz="sm" c="dimmed" w={110}>{row.court_id ? names.get(row.court_id) : 'À replanifier'}</Text>
@@ -73,7 +74,29 @@ export function SchedulePanel({ data, onChange }: { data: TournamentConfiguratio
         <Group><Button type="submit" size="sm">Enregistrer le déplacement</Button></Group>
       </Stack></fieldset></form>
     </Disclosure></Box> : null}
-  </Paper>)}</Stack>;
+  </li>)}</ol>;
+
+  /** Phase de classement prévisionnelle, après les matchs de poule donnés (fins en millisecondes). */
+  const forecast = (poolEnds: number[]) => {
+    const rows = placementForecast(data, poolEnds);
+    if (!rows.length) return null;
+    const rounds = [...new Set(rows.map((row) => row.round))];
+    return <Box mt="lg" className="forecast">
+      <Group justify="space-between" mb={4}><Title order={3} fz="lg">Phase de classement · prévisionnel</Title><Text c="dimmed" fz="sm">{rows.length} matchs</Text></Group>
+      <Text fz="sm" c="dimmed" mb="sm">Horaires estimés après les poules (pause entre les tours comprise). Les rencontres exactes dépendront des classements : chaque tour sera généré depuis l’onglet Résultats.</Text>
+      {rounds.map((round) => <Box key={round} mb="sm">
+        <Text fw={700} fz="sm" mb={2}>Tour {round}</Text>
+        <ol className="plain-list">{rows.filter((row) => row.round === round).map((row) => <li key={row.number}>
+          <Group gap="md" wrap="wrap">
+            <Text fw={800} w={110} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTime(new Date(row.start).toISOString())}</Text>
+            <Text fz="sm" c="dimmed" w={110}>{names.get(row.courtId)}</Text>
+            <Text fz="sm" fw={700} w={150}>Match {row.number} · {placementLabel(row.placeFrom, row.placeTo)}</Text>
+            <Text fz="sm" c="dimmed" style={{ flex: '1 1 220px' }}>{row.home} – {row.away}</Text>
+          </Group>
+        </li>)}</ol>
+      </Box>)}
+    </Box>;
+  };
 
   const range = (rows: { starts_at: string | null; ends_at: string | null }[]) => {
     const starts = rows.flatMap((row) => row.starts_at ? [Date.parse(row.starts_at)] : []);
@@ -109,9 +132,12 @@ export function SchedulePanel({ data, onChange }: { data: TournamentConfiguratio
         <Text fz="sm" c="dimmed">Rien n’est encore enregistré. Vérifiez les horaires, puis enregistrez.</Text>
         {preview.save_blockers.length ? <Text c="red.8">{preview.save_blockers.join(' ')}</Text> : <Group><Button onClick={() => void save()} disabled={busy}>Enregistrer ce calendrier</Button><Button variant="subtle" onClick={() => setPreview(null)} disabled={busy}>Annuler</Button></Group>}
         {list(preview.matches.map((match, index) => ({ ...match, key: String(index) })))}
+        {forecast(preview.matches.map((match) => Date.parse(match.ends_at)))}
       </Stack>}
     </Card> : null}
 
-    {hasSchedule ? <Card><Title order={2} fz="xl" mb="md">Calendrier enregistré</Title>{list(data.matches.map((match) => ({ ...match, key: match.id })))}</Card> : null}
+    {hasSchedule ? <Card><Title order={2} fz="xl" mb="md">Calendrier enregistré</Title>{list(data.matches.map((match) => ({ ...match, key: match.id })))}
+      {!data.matches.some((match) => match.phase === 'FINAL') ? forecast(data.matches.filter((match) => match.phase === 'POOL' && match.ends_at && match.status !== 'CANCELLED').map((match) => Date.parse(match.ends_at!))) : null}
+    </Card> : null}
   </Stack>;
 }

@@ -2,7 +2,7 @@
 import { Group, Paper, Progress, SimpleGrid, Text, UnstyledButton } from '@mantine/core';
 import type { TournamentConfiguration } from '@/lib/tournaments/contracts';
 
-type Target = 'results' | 'schedule' | 'teams' | 'pools' | 'courts';
+type Target = 'results' | 'schedule' | 'teams' | 'courts';
 type Kpi = { key: string; label: string; value: string; detail: string; warn?: boolean; progress?: number; target: Target; action: string };
 
 const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`;
@@ -34,7 +34,7 @@ export function kpis(data: TournamentConfiguration): Kpi[] {
       detail: !data.teams.length ? 'Aucune équipe inscrite' : unassigned ? `${unassigned} sans poule` : 'Toutes dans une poule', warn: !data.teams.length || unassigned > 0,
     },
     {
-      key: 'pools', label: 'Poules', value: String(data.pools.length), target: 'pools', action: 'Gérer les poules',
+      key: 'pools', label: 'Poules', value: String(data.pools.length), target: 'teams', action: 'Gérer les poules',
       detail: !data.pools.length ? 'Aucune poule' : smallest === largest ? `${plural(smallest, 'équipe')} chacune` : `${smallest} à ${largest} équipes`, warn: !data.pools.length || smallest < 2,
     },
     {

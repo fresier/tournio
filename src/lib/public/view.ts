@@ -70,7 +70,10 @@ export function pendingPlacement(snapshot: PublicTournament, teamId: string): { 
   if (snapshot.tournament.status !== 'PUBLISHED') return null;
   const finals = snapshot.matches.filter((match) => match.phase === 'FINAL');
   const generated = finals.reduce((max, match) => Math.max(max, match.final_round ?? 0), 0);
-  const remaining = placement.rounds - generated;
+  // Dès le tour 1, la plage de places encore disputée donne le nombre exact de matchs restants
+  // (une équipe d’un groupe incomplet en joue moins) ; avant, le nombre de tours du format.
+  const row = placement.standing?.find((standing) => standing.team_id === teamId);
+  const remaining = row ? Math.ceil(Math.log2(row.place_to - row.place_from + 1)) : placement.rounds - generated;
   if (remaining <= 0) return null;
   return { remaining, waitingFor: generated === 0 ? 'pools' : generated };
 }

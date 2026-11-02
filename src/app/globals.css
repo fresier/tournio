@@ -117,3 +117,40 @@ body { -webkit-tap-highlight-color: transparent; }
 .tv-ranking li[data-podium] .tv-rank { color: var(--tournio-accent); }
 .estimate { border-left: 3px solid var(--mantine-primary-color-filled); padding-left: 0.6em; }
 .estimate[data-overrun] { border-left-color: var(--tv-orange-text, #c2410c); }
+
+/* Nom d’équipe ou de poule renommable d’un clic. */
+.team-name { border-radius: 4px; padding: 2px 4px; margin: -2px -4px; cursor: text; }
+.team-name:hover { background: var(--mantine-color-default-hover); }
+
+/* Listes dans une carte : lignes séparées par un trait fin, sans cadre imbriqué. */
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list > li { padding: 10px 0; }
+.plain-list > li:first-child { padding-top: 4px; }
+.plain-list > li + li { border-top: 1px solid var(--mantine-color-default-border); }
+
+/* Glisser-déposer des équipes vers les poules. */
+.drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 28px; flex-shrink: 0; border-radius: 4px; color: var(--mantine-color-dimmed); cursor: grab; touch-action: none; font-size: 16px; }
+.drag-handle:hover { background: var(--mantine-color-default-hover); color: var(--mantine-color-text); }
+.drag-handle[data-dragging] { opacity: .4; }
+.drag-chip { cursor: grabbing; }
+.pool-members { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pool-members > li { display: flex; align-items: center; gap: 6px; }
+.drop-zone > .mantine-Card-root { transition: border-color 120ms ease, box-shadow 120ms ease; }
+.drop-zone[data-dragging] > .mantine-Card-root { border-style: dashed; }
+.drop-zone[data-over] > .mantine-Card-root { border-style: solid; border-color: var(--mantine-primary-color-filled); box-shadow: 0 0 0 2px var(--mantine-primary-color-filled); }
+.drop-area { border: 1px dashed var(--mantine-color-default-border); border-radius: var(--mantine-radius-md); padding: 10px 12px; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.drop-zone[data-over] > .drop-area { border-style: solid; border-color: var(--mantine-primary-color-filled); box-shadow: 0 0 0 2px var(--mantine-primary-color-filled); }
+
+/* Formats incompatibles avec le nombre d’équipes : atténués, sauf la raison, qui reste lisible. */
+.theme-card[data-incompatible] { background: var(--mantine-color-default-hover); border-style: dashed; cursor: not-allowed; }
+.theme-card[data-incompatible] :is(.mantine-RadioIndicator-indicator, .mantine-Text-root, .mantine-List-root, .mantine-Badge-root):not(.format-reason) { opacity: .45; }
+
+/* Format du tournoi : cartes compactes de même hauteur, détail du format choisi en dessous. */
+.format-card { height: 100%; }
+.format-card > * { height: 100%; }
+.format-duration[data-overrun] { color: var(--tv-orange-text, #9a3412); }
+.format-detail { background: var(--mantine-primary-color-light); border-color: transparent; }
+.format-per-team { padding-bottom: 4px; margin-bottom: 2px; border-bottom: 1px solid var(--mantine-color-default-border); }
+
+/* Onglet complété : petite coche verte après le titre. */
+.tab-done { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; color: #fff; background: var(--mantine-color-teal-9); }

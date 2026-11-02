@@ -7,7 +7,7 @@ const T = '00000000-0000-4000-8000-000000000000';
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const base = (): TournamentConfiguration => ({
   tournament: { id: T, name: 'T', slug: 't', sport: 'Volley', location: '', timezone: 'Europe/Brussels', starts_at: '2026-11-14T08:00:00Z', ends_at: '2026-11-14T17:00:00Z', status: 'DRAFT', published_at: null, theme: 'tournio', primary_color: null, accent_color: null, version: 1, created_at: '', updated_at: '' },
-  rules: { tournament_id: T, match_duration_minutes: 20, transition_minutes: 5, minimum_rest_minutes: 10, allow_draw: true, aligned_slots: false, points_win: 3, points_draw: 1, points_loss: 0, tie_break_order: [], final_format: 'none', round_break_minutes: 0 },
+  rules: { tournament_id: T, match_duration_minutes: 20, transition_minutes: 5, minimum_rest_minutes: 10, allow_draw: true, aligned_slots: false, points_win: 3, points_draw: 1, points_loss: 0, tie_break_order: [], final_format: 'none', round_break_minutes: 0, allow_incomplete: false },
   teams: [1, 2, 3].map((n) => ({ id: id(n), tournament_id: T, name: `É${n}`, slug: `e${n}`, created_at: '', updated_at: '' })),
   pools: [{ id: id(10), tournament_id: T, name: 'A', sort_order: 0 }],
   courts: [{ id: id(20), tournament_id: T, name: 'T1', sort_order: 0 }, { id: id(21), tournament_id: T, name: 'T2', sort_order: 1 }],

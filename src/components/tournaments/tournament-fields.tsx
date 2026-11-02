@@ -1,7 +1,6 @@
 'use client';
 import { SimpleGrid, Text } from '@mantine/core';
 import { Field } from '@/components/forms/field';
-import { Disclosure } from '@/components/ui/disclosure';
 import { FormError } from '@/lib/tournaments/client';
 import { timezoneSchema, type TournamentInput } from '@/lib/tournaments/contracts';
 import { instantToLocal, localToInstant } from '@/lib/tournaments/dates';
@@ -11,8 +10,8 @@ export function tournamentFields(form: FormData): TournamentInput {
   const timezone = value('timezone');
   if (!timezoneSchema.safeParse(timezone).success) throw new FormError('Vérifiez le fuseau horaire.', { timezone: ['Utilisez un identifiant IANA, par exemple Europe/Brussels.'] });
   const instant = (key: string) => {
-    try { return localToInstant(value(key), timezone, value(`${key}_offset`)); }
-    catch { throw new FormError('Vérifiez les horaires du tournoi.', { [key]: ['Heure invalide, inexistante ou ambiguë dans ce fuseau. Pour une heure ambiguë, précisez le décalage UTC ci-dessous.'] }); }
+    try { return localToInstant(value(key), timezone); }
+    catch { throw new FormError('Vérifiez les horaires du tournoi.', { [key]: ['Heure invalide, ou qui n’existe pas ou se répète dans ce fuseau (nuit du changement d’heure) : choisissez une autre heure.'] }); }
   };
   return { name: value('name'), slug: value('slug'), sport: value('sport'), location: value('location'), timezone, starts_at: instant('starts_at'), ends_at: instant('ends_at') };
 }
@@ -36,6 +35,5 @@ export function TournamentFields({ value, fields = {}, slug, onSlugChange, onNam
       <Field name="starts_at" label="Début" type="datetime-local" defaultValue={value ? instantToLocal(value.starts_at, timezone) : undefined} required error={fields.starts_at} />
       <Field name="ends_at" label="Fin" type="datetime-local" defaultValue={value ? instantToLocal(value.ends_at, timezone) : undefined} required error={fields.ends_at} />
     </SimpleGrid>
-    <Disclosure label="Préciser le décalage UTC lors d’un changement d’heure"><Text fz="sm" c="dimmed" mb="sm">Uniquement si une heure existe deux fois : saisissez par exemple +01:00 ou +02:00. Le décalage doit correspondre au fuseau et à la date.</Text><SimpleGrid cols={{ base: 1, sm: 2 }}><Field name="starts_at_offset" label="Décalage UTC du début" placeholder="+01:00" pattern="[+-][0-9]{2}:[0-9]{2}" /><Field name="ends_at_offset" label="Décalage UTC de fin" placeholder="+01:00" pattern="[+-][0-9]{2}:[0-9]{2}" /></SimpleGrid></Disclosure>
   </>;
 }

@@ -3,7 +3,6 @@ import { useState, type FormEvent } from 'react';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { Alert, Anchor, Badge, Box, Button, Card, Checkbox, Group, Modal, Radio, RadioGroup, NativeSelect, SimpleGrid, Stack, Tabs, TabsList, TabsPanel, TabsTab, Text, TextInput, Title, UnstyledButton } from '@mantine/core';
 import { Field, FormFeedback } from '@/components/forms/field';
-import { TextLink } from '@/components/ui/links';
 import { PageHeading } from '@/components/ui/page-heading';
 import { TournamentStatus } from '@/components/ui/status';
 import { TournamentFields, tournamentFields } from './tournament-fields';
@@ -201,7 +200,6 @@ export function TournamentEditor({ initial, publicOrigin }: { initial: Tournamen
 
   return <>
     <TournamentTheme appearance={t} />
-    <TextLink href="/dashboard" fz="sm" mb="sm" display="inline-block">← Mes tournois</TextLink>
     <PageHeading title={t.name} badge={<TournamentStatus status={t.status} />} action={<Button variant="default" size="sm" onClick={reload} disabled={busy}>Recharger</Button>}
       description={<>{t.sport}{t.location ? ` · ${t.location}` : ''}<br />{formatTournamentDate(t.starts_at, t.timezone)} — {t.timezone}</>}>
       {t.status !== 'DRAFT' ? <Group gap="xs" mt="xs"><Anchor href={`/t/${t.slug}`} target="_blank" rel="noopener noreferrer" fw={600}>Voir la page publique</Anchor><Text c="dimmed">·</Text><Anchor component="button" type="button" onClick={() => setSection('share')} fw={600}>Liens et QR codes</Anchor></Group> : null}
@@ -228,7 +226,7 @@ export function TournamentEditor({ initial, publicOrigin }: { initial: Tournamen
               <Stack><TournamentFields value={t} fields={errorFor('information')?.fields} />{status('information')}<Group><Button type="submit">Enregistrer les informations</Button></Group></Stack>
             </fieldset></form>
           </Card>
-          <AppearancePanel key={`${t.primary_color}:${t.accent_color}`} data={data} busy={busy} feedback={status('appearance')}
+          <AppearancePanel key={`${t.theme}:${t.primary_color}:${t.accent_color}:${t.background_color}:${t.surface_color}:${t.text_color}`} data={data} busy={busy} feedback={status('appearance')}
             onSave={(payload) => mutate('update_appearance', payload, 'appearance')} />
         </Stack></TabsPanel>
 

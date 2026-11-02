@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publicSnapshot } from '../src/lib/public/snapshot';
-import { courtStates, recentResults, standingPages, upcomingMatches } from '../src/lib/public/tv';
+import { courtStates, recentResults, standingPages } from '../src/lib/public/tv';
 
 const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const teams = Array.from({ length: 8 }, (_, i) => ({ id: u(i + 1), name: `Équipe ${i + 1}`, slug: `e${i + 1}` }));
@@ -19,13 +19,25 @@ const snapshot = publicSnapshot({
   matches: [m(1, K1, 8, 'COMPLETED', [3, 1]), m(2, K1, 9, 'IN_PROGRESS'), m(3, K1, 10), m(4, K2, 9, 'COMPLETED', [0, 2]), m(5, K2, 11), m(6, K2, 12), m(7, K2, 13, 'CANCELLED')],
 });
 
-test('écran TV : un terrain par ligne, en cours puis prochain puis libre', () => {
-  assert.deepEqual(courtStates(snapshot).map((row) => [row.courtId, row.state, row.match?.id]), [[K1, 'live', u(102)], [K2, 'next', u(105)], [K3, 'idle', undefined]]);
+test('écran TV : chaque terrain conserve son match en cours et son prochain match', () => {
+  assert.deepEqual(courtStates({ ...snapshot, matches: [...snapshot.matches].reverse() }).map((row) => [row.courtId, row.current?.id, row.next?.id]), [
+    [K1, u(102), u(103)], [K2, undefined, u(105)], [K3, undefined, undefined],
+  ]);
 });
 
-test('écran TV : à suivre sans doublon, derniers résultats du plus récent au plus ancien', () => {
-  assert.deepEqual(upcomingMatches(snapshot, 5).map((row) => row.id), [u(103), u(106)]);
-  assert.deepEqual(upcomingMatches(snapshot, 1).map((row) => row.id), [u(103)]);
+test('écran TV : le prochain match avance sur son terrain après un lancement', () => {
+  const updated = { ...snapshot, matches: snapshot.matches.map((match) => match.id === u(105) ? { ...match, status: 'IN_PROGRESS' as const } : match) };
+  assert.deepEqual(courtStates(updated).map((row) => [row.current?.id, row.next?.id]), [
+    [u(102), u(103)], [u(105), u(106)], [undefined, undefined],
+  ]);
+});
+
+test('écran TV : les matchs reportés ou sans horaire ne sont pas annoncés comme suivants', () => {
+  const updated = { ...snapshot, matches: snapshot.matches.map((match) => match.id === u(105) ? { ...match, status: 'POSTPONED' as const } : match.id === u(106) ? { ...match, starts_at: null } : match) };
+  assert.equal(courtStates(updated)[1].next, undefined);
+});
+
+test('écran TV : derniers résultats du plus récent au plus ancien', () => {
   assert.deepEqual(recentResults(snapshot, 5).map((row) => row.id), [u(104), u(101)]);
 });
 

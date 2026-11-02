@@ -26,7 +26,7 @@ test('instantané public : liste blanche, aucune donnée privée', () => {
   const snapshot = publicSnapshot(source([match(1, A, B, '2026-11-14T08:00:00Z')]));
   const text = JSON.stringify(snapshot);
   for (const secret of [u(98), u(99), 'owner_id', 'created_at', 'result_validated_at', 'rules']) assert(!text.includes(secret), secret);
-  assert.deepEqual(Object.keys(snapshot.tournament).sort(), ['accent_color', 'ends_at', 'location', 'name', 'primary_color', 'slug', 'sport', 'starts_at', 'status', 'theme', 'timezone', 'version']);
+  assert.deepEqual(Object.keys(snapshot.tournament).sort(), ['accent_color', 'background_color', 'ends_at', 'location', 'name', 'primary_color', 'slug', 'sport', 'starts_at', 'status', 'surface_color', 'text_color', 'theme', 'timezone', 'version']);
 });
 
 test('instantané public : score visible seulement une fois validé, classement recalculé', () => {

@@ -7,23 +7,16 @@ import type { PublicMatch, PublicTournament } from './contracts';
 
 const byStart = (a: PublicMatch, b: PublicMatch) => Date.parse(a.starts_at ?? '') - Date.parse(b.starts_at ?? '') || a.id.localeCompare(b.id);
 
-export type CourtState = { courtId: string; match: PublicMatch | undefined; state: 'live' | 'next' | 'idle' };
+export type CourtState = { courtId: string; current: PublicMatch | undefined; next: PublicMatch | undefined };
 
-/** Un terrain par ligne : le match en cours, sinon le prochain prévu, sinon libre. */
+/** Chaque terrain garde son match en cours et son prochain match prévu, indépendamment l’un de l’autre. */
 export function courtStates(snapshot: PublicTournament): CourtState[] {
   return snapshot.courts.map((court) => {
     const onCourt = snapshot.matches.filter((match) => match.court_id === court.id);
-    const live = onCourt.filter((match) => match.status === 'IN_PROGRESS').sort(byStart)[0];
-    if (live) return { courtId: court.id, match: live, state: 'live' };
+    const current = onCourt.filter((match) => match.status === 'IN_PROGRESS').sort(byStart)[0];
     const next = onCourt.filter((match) => match.status === 'SCHEDULED' && match.starts_at).sort(byStart)[0];
-    return { courtId: court.id, match: next, state: next ? 'next' : 'idle' };
+    return { courtId: court.id, current, next };
   });
-}
-
-/** Matchs prévus suivants, hors ceux déjà annoncés sur leur terrain. */
-export function upcomingMatches(snapshot: PublicTournament, limit: number) {
-  const announced = new Set(courtStates(snapshot).flatMap((row) => row.match ? [row.match.id] : []));
-  return snapshot.matches.filter((match) => match.status === 'SCHEDULED' && match.starts_at && !announced.has(match.id)).sort(byStart).slice(0, limit);
 }
 
 /** Derniers résultats validés, du plus récent au plus ancien (ordre du calendrier). */

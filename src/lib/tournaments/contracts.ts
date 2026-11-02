@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HEX_COLOR, THEME_IDS } from '@/lib/appearance';
+import { customThemeProblem, HEX_COLOR, THEME_IDS } from '@/lib/appearance';
 import { FINAL_FORMATS } from '@/lib/domain/placement';
 
 const name = z.string().trim().min(2, 'Deux caractères minimum.').max(80, '80 caractères maximum.');
@@ -37,7 +37,12 @@ const resourceId = z.strictObject({ id });
 const availabilityInput = z.strictObject({ court_id: id, ...dateRange })
   .refine((value) => Date.parse(value.ends_at) > Date.parse(value.starts_at), { path: ['ends_at'], message: 'La fin doit être après le début.' });
 const color = z.string().trim().toLowerCase().regex(HEX_COLOR, 'Couleur au format #rrggbb attendue.').nullable();
-export const appearanceInputSchema = z.strictObject({ theme: z.enum(THEME_IDS, 'Thème inconnu.'), primary_color: color, accent_color: color });
+export const appearanceInputSchema = z.strictObject({ theme: z.enum(THEME_IDS, 'Thème inconnu.'), primary_color: color, accent_color: color,
+  background_color: color.optional(), surface_color: color.optional(), text_color: color.optional(),
+}).superRefine((value, context) => {
+  const problem = customThemeProblem(value);
+  if (problem) context.addIssue({ code: 'custom', path: ['background_color'], message: problem });
+});
 const unavailabilityInput = z.strictObject({ court_id: id, ...dateRange })
   .refine((value) => Date.parse(value.ends_at) > Date.parse(value.starts_at), { path: ['ends_at'], message: 'La fin doit être après le début.' });
 const command = <T extends string, P extends z.ZodType>(operation: T, payload: P) => z.strictObject({
@@ -61,6 +66,7 @@ export const tournamentSchema = z.object({
   id, name: z.string(), slug: z.string(), sport: z.string(), location: z.string(), timezone: z.string(),
   starts_at: z.string(), ends_at: z.string(), status: z.enum(['DRAFT', 'PUBLISHED', 'COMPLETED', 'ARCHIVED']),
   published_at: z.string().nullable(), theme: z.string(), primary_color: z.string().nullable(), accent_color: z.string().nullable(),
+  background_color: color.optional(), surface_color: color.optional(), text_color: color.optional(),
   version: z.number().int(), created_at: z.string(), updated_at: z.string(),
 });
 const teamSchema = z.object({ id, tournament_id: id, name: z.string(), slug: z.string(), created_at: z.string(), updated_at: z.string() });
@@ -72,7 +78,10 @@ export const storedMatchSchema = z.object({
   starts_at: z.string().nullable(), ends_at: z.string().nullable(), status: matchStatusSchema,
   home_score: z.number().int().nullable(), away_score: z.number().int().nullable(), version: z.number().int(),
 });
-export const tournamentSummarySchema = tournamentSchema.extend({ team_count: z.number(), pool_count: z.number(), court_count: z.number() });
+export const tournamentSummarySchema = tournamentSchema.extend({ team_count: z.number(), pool_count: z.number(), court_count: z.number(), access_role: z.enum(['owner', 'manager']) });
+export const managerEmailSchema = z.string().trim().toLowerCase().max(254, '254 caractères maximum.').pipe(z.email('Adresse e-mail invalide.'));
+export const managerCommandSchema = z.strictObject({ email: managerEmailSchema });
+export const managersResponseSchema = z.object({ role: z.enum(['owner', 'manager']), managers: z.array(z.object({ id, email: z.string() })) });
 export const configurationSchema = z.object({
   tournament: tournamentSchema,
   rules: rulesInputSchema.extend({ tournament_id: id, tie_break_order: z.array(z.string()), final_format: finalFormatSchema.nullable(), round_break_minutes: z.number().int(), allow_incomplete: z.boolean() }),

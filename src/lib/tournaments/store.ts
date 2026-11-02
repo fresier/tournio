@@ -1,6 +1,6 @@
 import type { Prisma, Tournament } from '@/generated/prisma/client';
 import { getPrisma } from '@/lib/database/client';
-import { configurationSchema, schedulePreviewSchema, tournamentSummarySchema, type ConfigurationCommand, type MatchCommand, type ScheduleCommand, type StartMatches, type TournamentInput, type TournamentConfiguration } from './contracts';
+import { configurationSchema, managersResponseSchema, schedulePreviewSchema, tournamentSummarySchema, type ConfigurationCommand, type MatchCommand, type ScheduleCommand, type StartMatches, type TournamentInput, type TournamentConfiguration } from './contracts';
 import { planSchedule, scheduleViolations } from './schedule';
 import { planFinalRound, placementState } from './placement';
 import { formatProblems } from '@/lib/domain/placement';
@@ -20,12 +20,22 @@ function publicTournament(t: Tournament) {
   return { id: t.id, name: t.name, slug: t.slug, sport: t.sport, location: t.location, timezone: t.timezone,
     starts_at: t.starts_at, ends_at: t.ends_at, status: t.status, published_at: t.published_at,
     theme: t.theme, primary_color: t.primary_color, accent_color: t.accent_color,
+    background_color: t.background_color, surface_color: t.surface_color, text_color: t.text_color,
     version: t.version, created_at: t.created_at, updated_at: t.updated_at };
+}
+
+/** Une invitation ne donne accès qu’au compte dont l’adresse a été vérifiée. */
+async function accessibleBy(userId: string, database: Prisma.TransactionClient): Promise<Prisma.TournamentWhereInput> {
+  const user = await database.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
+  return { OR: [
+    { owner_id: userId },
+    ...(user?.emailVerified ? [{ managers: { some: { email: user.email.trim().toLowerCase() } } }] : []),
+  ] };
 }
 
 export async function configurationForUser(userId: string, id: string, database?: Prisma.TransactionClient): Promise<TournamentConfiguration> {
   if (!database) return getPrisma().$transaction((tx) => configurationForUser(userId, id, tx), { isolationLevel: 'RepeatableRead', timeout: 15000 });
-  const row = await database.tournament.findFirst({ where: { id, owner_id: userId }, include: {
+  const row = await database.tournament.findFirst({ where: { id, ...await accessibleBy(userId, database) }, include: {
     rules: true, teams: { orderBy: [{ created_at: 'asc' }, { id: 'asc' }] },
     pools: { orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] },
     pool_teams: { orderBy: [{ pool_id: 'asc' }, { team_id: 'asc' }] },
@@ -39,8 +49,9 @@ export async function configurationForUser(userId: string, id: string, database?
 }
 
 export async function tournamentsForUser(userId: string) {
-  const rows = await getPrisma().tournament.findMany({ where: { owner_id: userId }, orderBy: [{ created_at: 'desc' }, { id: 'asc' }], include: { _count: { select: { teams: true, pools: true, courts: true } } } });
-  return rows.map((row) => tournamentSummarySchema.parse(jsonValue({ ...publicTournament(row), team_count: row._count.teams, pool_count: row._count.pools, court_count: row._count.courts })));
+  const db = getPrisma();
+  const rows = await db.tournament.findMany({ where: await accessibleBy(userId, db), orderBy: [{ created_at: 'desc' }, { id: 'asc' }], include: { _count: { select: { teams: true, pools: true, courts: true } } } });
+  return rows.map((row) => tournamentSummarySchema.parse(jsonValue({ ...publicTournament(row), team_count: row._count.teams, pool_count: row._count.pools, court_count: row._count.courts, access_role: row.owner_id === userId ? 'owner' : 'manager' })));
 }
 
 export async function createTournamentForUser(userId: string, input: TournamentInput) {
@@ -52,9 +63,7 @@ export async function createTournamentForUser(userId: string, input: TournamentI
 
 export async function configureTournamentForUser(userId: string, id: string, command: ConfigurationCommand) {
   return getPrisma().$transaction(async (tx) => {
-    const [current] = await tx.$queryRaw<Pick<Tournament, 'id' | 'version' | 'status' | 'starts_at' | 'ends_at'>[]>`
-      SELECT id, version, status, starts_at, ends_at FROM tournio.tournaments
-      WHERE id = ${id}::uuid AND owner_id = ${userId}::uuid FOR UPDATE`;
+    const current = await lockedTournament(tx, userId, id);
     if (!current) throw missing();
     if (current.version !== command.expected_version) throw new DomainError('STALE_VERSION', 'Ce tournoi a changé dans un autre onglet. Rechargez sa dernière version.', 409);
     // Exceptions au verrou de configuration, sans effet sur les matchs déjà joués :
@@ -88,7 +97,8 @@ export async function configureTournamentForUser(userId: string, id: string, com
         for (const court of remapped) await replaceWindows(tx, id, court.id, court.windows);
         break;
       }
-      case 'update_appearance': await tx.tournament.update({ where: { id }, data: command.payload }); break;
+      case 'update_appearance': await tx.tournament.update({ where: { id }, data: { ...command.payload,
+        background_color: command.payload.background_color ?? null, surface_color: command.payload.surface_color ?? null, text_color: command.payload.text_color ?? null } }); break;
       case 'set_final_format': {
         const sizes = await tx.pool.findMany({ where: { tournament_id: id }, select: { _count: { select: { members: true } } } });
         const problems = formatProblems(command.payload.final_format, sizes.map((pool) => pool._count.members), command.payload.allow_incomplete);
@@ -183,10 +193,51 @@ async function replaceWindows(tx: Prisma.TransactionClient, tournamentId: string
   if (windows.length) await tx.courtAvailability.createMany({ data: windows.map((window) => ({ tournament_id: tournamentId, court_id: courtId, starts_at: new Date(window.start), ends_at: new Date(window.end) })) });
 }
 
-function lockedTournament(tx: Prisma.TransactionClient, userId: string, id: string) {
-  return tx.$queryRaw<Pick<Tournament, 'id' | 'version' | 'status'>[]>`
-    SELECT id, version, status FROM tournio.tournaments
-    WHERE id = ${id}::uuid AND owner_id = ${userId}::uuid FOR UPDATE`.then((rows) => rows[0]);
+async function lockedTournament(tx: Prisma.TransactionClient, userId: string, id: string) {
+  const [row] = await tx.$queryRaw<Pick<Tournament, 'id' | 'owner_id' | 'version' | 'status' | 'starts_at' | 'ends_at'>[]>`
+    SELECT t.id, t.owner_id, t.version, t.status, t.starts_at, t.ends_at FROM tournio.tournaments t
+    WHERE t.id = ${id}::uuid AND (t.owner_id = ${userId}::uuid OR EXISTS (
+      SELECT 1 FROM tournio.tournament_managers m JOIN tournio.users u ON m.email = lower(btrim(u.email))
+      WHERE m.tournament_id = t.id AND u.id = ${userId}::uuid AND u.email_verified = true
+    )) FOR UPDATE OF t`;
+  if (!row || row.owner_id === userId) return row;
+  // Le verrou a pu attendre une révocation : relire l’autorisation après son acquisition.
+  const [allowed] = await tx.$queryRaw<{ allowed: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM tournio.tournament_managers m JOIN tournio.users u ON m.email = lower(btrim(u.email))
+      WHERE m.tournament_id = ${id}::uuid AND u.id = ${userId}::uuid AND u.email_verified = true) AS allowed`;
+  return allowed?.allowed ? row : undefined;
+}
+
+/** La liste des adresses n’est visible que par le propriétaire. */
+export async function managersForUser(userId: string, id: string) {
+  return getPrisma().$transaction(async (tx) => {
+    const tournament = await tx.tournament.findFirst({ where: { id, ...await accessibleBy(userId, tx) }, select: { owner_id: true } });
+    if (!tournament) throw missing();
+    const role = tournament.owner_id === userId ? 'owner' : 'manager';
+    const managers = role === 'owner' ? await tx.tournamentManager.findMany({ where: { tournament_id: id }, select: { id: true, email: true }, orderBy: [{ created_at: 'asc' }, { id: 'asc' }] }) : [];
+    return managersResponseSchema.parse({ role, managers });
+  }, { isolationLevel: 'RepeatableRead' });
+}
+
+/** Les changements d’accès sont sérialisés avec les actions des gestionnaires. */
+export async function changeManagerForOwner(userId: string, id: string, email: string, operation: 'add' | 'remove') {
+  return getPrisma().$transaction(async (tx) => {
+    const [tournament] = await tx.$queryRaw<{ owner_id: string }[]>`
+      SELECT owner_id FROM tournio.tournaments WHERE id = ${id}::uuid AND owner_id = ${userId}::uuid FOR UPDATE`;
+    if (!tournament) throw missing();
+    const owner = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (owner?.email.trim().toLowerCase() === email) throw new DomainError('OWNER_ADDRESS', 'Le propriétaire a déjà accès au tournoi.', 422);
+    if (operation === 'add') {
+      if (await tx.tournamentManager.count({ where: { tournament_id: id } }) >= 50) throw new DomainError('MANAGER_LIMIT', '50 gestionnaires maximum par tournoi.', 422);
+      if (await tx.tournamentManager.findUnique({ where: { tournament_id_email: { tournament_id: id, email } } })) throw new DomainError('MANAGER_EXISTS', 'Cette adresse a déjà accès au tournoi.', 409);
+      await tx.tournamentManager.create({ data: { tournament_id: id, email } });
+    } else {
+      const deleted = await tx.tournamentManager.deleteMany({ where: { tournament_id: id, email } });
+      if (!deleted.count) throw missing();
+    }
+    const managers = await tx.tournamentManager.findMany({ where: { tournament_id: id }, select: { id: true, email: true }, orderBy: [{ created_at: 'asc' }, { id: 'asc' }] });
+    return managersResponseSchema.parse({ role: 'owner', managers });
+  });
 }
 
 /** Raisons d’empêcher l’enregistrement d’un nouveau calendrier, communes à la prévisualisation et à l’écriture. */

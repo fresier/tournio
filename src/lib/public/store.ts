@@ -9,7 +9,7 @@ export async function publicTournamentBySlug(slug: string) {
   const row = await getPrisma().tournament.findFirst({
     where: { slug, status: { in: [...PUBLIC_STATUSES] } },
     select: {
-      id: true, name: true, slug: true, sport: true, location: true, timezone: true, starts_at: true, ends_at: true, status: true, version: true, theme: true, primary_color: true, accent_color: true,
+      id: true, name: true, slug: true, sport: true, location: true, timezone: true, starts_at: true, ends_at: true, status: true, version: true, theme: true, primary_color: true, accent_color: true, background_color: true, surface_color: true, text_color: true,
       rules: { select: { allow_draw: true, points_win: true, points_draw: true, points_loss: true, tie_break_order: true, final_format: true } },
       pools: { orderBy: [{ sort_order: 'asc' }, { id: 'asc' }], select: { id: true, name: true } },
       teams: { orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { id: true, name: true, slug: true } },

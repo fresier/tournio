@@ -131,6 +131,34 @@ try {
   await admin.goto(`${origin}/dashboard`); await admin.getByText('Pilote navigateur').first().waitFor(); await audit(admin, 'dashboard');
   await admin.goto(`${origin}/dashboard/tournaments/${t.id}`);
   await admin.getByRole('heading', { level: 1, name: 'Pilote navigateur' }).waitFor(); await audit(admin, 'configuration');
+  // Partage de la gestion avant publication, depuis l’interface du propriétaire.
+  await admin.getByRole('tab', { name: 'Partage', exact: true }).click();
+  const managerEmail = process.env.TEST_OTHER_EMAIL!;
+  await admin.getByRole('textbox', { name: 'Adresse e-mail du gestionnaire' }).fill(managerEmail);
+  await admin.getByRole('button', { name: 'Ajouter l’accès' }).click();
+  await admin.getByRole('button', { name: `Retirer l’accès à ${managerEmail}` }).waitFor();
+  await audit(admin, 'partage de la gestion');
+  const otherCookie = await login('TEST_OTHER');
+  const otherContext = await desktop.newContext({ viewport: { width: 1280, height: 900 }, locale: 'fr-BE' });
+  await otherContext.addCookies(otherCookie.split('; ').map((pair) => {
+    const index = pair.indexOf('=');
+    return { name: pair.slice(0, index), value: pair.slice(index + 1), url: origin };
+  }));
+  const otherPage = await otherContext.newPage(); watch(otherPage, 'gestionnaire invité');
+  await otherPage.goto(`${origin}/dashboard`);
+  const sharedCard = otherPage.getByRole('article').filter({ hasText: 'Pilote navigateur' });
+  await sharedCard.getByText('Partagé avec vous').waitFor();
+  await sharedCard.getByRole('link', { name: /Configurer/ }).click();
+  await otherPage.getByRole('tab', { name: 'Partage', exact: true }).click();
+  await otherPage.getByText(/Seul son propriétaire peut ajouter ou retirer/).waitFor();
+  assert.equal(await otherPage.getByRole('textbox', { name: 'Adresse e-mail du gestionnaire' }).count(), 0);
+  await audit(otherPage, 'partage vu par le gestionnaire');
+  await admin.getByRole('button', { name: `Retirer l’accès à ${managerEmail}` }).click();
+  await admin.getByText('Accès retiré.').waitFor();
+  await otherPage.goto(`${origin}/dashboard`);
+  assert.equal(await otherPage.getByRole('article').filter({ hasText: 'Pilote navigateur' }).count(), 0);
+  await otherContext.close();
+  console.log('OK — Partage d’un brouillon, accès du gestionnaire et révocation depuis le navigateur.');
   // Glisser-déposer (brouillon) : une équipe de la liste vers la Poule B, puis retour en Poule A depuis la carte de poule.
   // Fenêtre haute : la poule cible doit être visible (sinon le défilement automatique déplace la cible pendant le test).
   await admin.setViewportSize({ width: 1280, height: 1600 });

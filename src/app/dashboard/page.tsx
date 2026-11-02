@@ -1,4 +1,4 @@
-import { Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Badge, Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { listTournaments } from '@/lib/tournaments/server';
 import { formatTournamentDate } from '@/lib/tournaments/dates';
 import { ButtonLink, TextLink } from '@/components/ui/links';
@@ -12,7 +12,7 @@ export default async function DashboardPage() {
     {tournaments.length ? <Stack gap="md">{tournaments.map((tournament) => <Card key={tournament.id} component="article">
       <Group justify="space-between" align="flex-start" gap="lg">
         <Stack gap={4} style={{ minWidth: 0, flex: '1 1 260px' }}>
-          <Group gap="sm"><Title order={2} fz="xl"><TextLink href={`/dashboard/tournaments/${tournament.id}`} underline="hover" c="ink.8">{tournament.name}</TextLink></Title><TournamentStatus status={tournament.status} /></Group>
+          <Group gap="sm"><Title order={2} fz="xl"><TextLink href={`/dashboard/tournaments/${tournament.id}`} underline="hover" c="ink.8">{tournament.name}</TextLink></Title><TournamentStatus status={tournament.status} />{tournament.access_role === 'manager' ? <Badge variant="light">Partagé avec vous</Badge> : null}</Group>
           <Text>{tournament.sport}{tournament.location ? ` · ${tournament.location}` : ''}</Text>
           <Text fz="sm" c="dimmed">{formatTournamentDate(tournament.starts_at, tournament.timezone)} — {tournament.timezone}</Text>
         </Stack>

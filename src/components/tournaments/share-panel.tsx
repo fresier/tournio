@@ -4,8 +4,16 @@ import { Alert, Anchor, Button, Card, Code, Group, Stack, Text, Title } from '@m
 import { QrCode, useClientOrigin } from '@/components/qr-code';
 import { DEFAULT_PRIMARY, palette, readableShade } from '@/lib/appearance';
 import type { TournamentConfiguration } from '@/lib/tournaments/contracts';
+import { ManagementAccess } from './management-access';
 
 export function SharePanel({ data, origin }: { data: TournamentConfiguration; origin?: string }) {
+  return <Stack>
+    <ManagementAccess tournamentId={data.tournament.id} archived={data.tournament.status === 'ARCHIVED'} />
+    <PublicSharing data={data} origin={origin} />
+  </Stack>;
+}
+
+function PublicSharing({ data, origin }: { data: TournamentConfiguration; origin?: string }) {
   const clientOrigin = useClientOrigin();
   const [copied, setCopied] = useState('');
   const t = data.tournament;

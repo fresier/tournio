@@ -2,7 +2,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Box, Group, Paper, Stack, Table, TableTbody, TableTd, TableTh, TableThead, TableTr, UnstyledButton } from '@mantine/core';
 import type { PublicMatch, PublicTournament } from '@/lib/public/contracts';
-import { courtStates, recentResults, standingPages, upcomingMatches } from '@/lib/public/tv';
+import { courtStates, recentResults, standingPages } from '@/lib/public/tv';
 import { themedAppearance } from '@/lib/theme-variables';
 import { palette, readableShade } from '@/lib/appearance';
 import { formatMatchTime } from '@/lib/tournaments/dates';
@@ -65,8 +65,7 @@ export function TvView({ initial }: { initial: PublicTournament }) {
   }, [pageCount]);
   const shownPools = pages[page % Math.max(pageCount, 1)] ?? [];
 
-  const courts = courtStates(snapshot).slice(0, 8);
-  const upcoming = upcomingMatches(snapshot, Math.max(2, 10 - courts.length));
+  const courts = courtStates(snapshot);
   const results = recentResults(snapshot, 7);
   // Phase de classement : le dernier tour généré (avec ses résultats), dans l’ordre des places.
   const lastRound = snapshot.matches.reduce((max, match) => Math.max(max, match.final_round ?? 0), 0);
@@ -78,6 +77,14 @@ export function TvView({ initial }: { initial: PublicTournament }) {
   const publicUrl = origin ? `${origin}/t/${t.slug}` : null;
 
   const teams = (match: PublicMatch) => <span className="tv-teams"><strong>{name(match.home_team_id)}</strong><span className="tv-dim"> – </span><strong>{name(match.away_team_id)}</strong></span>;
+  const courtMatch = (match: PublicMatch | undefined, current: boolean) => <div className="tv-court-match" data-kind={current ? 'current' : 'next'}>
+    <span className="tv-chip" data-state={current && match ? 'live' : undefined}>{current ? 'En cours' : 'À suivre'}</span>
+    {match ? <>
+      <span className="tv-time">{time(match.starts_at)}</span>
+      {teams(match)}
+      <span className="tv-dim tv-pool">{group(match)}</span>
+    </> : <span className="tv-dim tv-court-empty">{current ? 'Libre' : 'Aucun match prévu'}</span>}
+  </div>;
 
   return <Box component="main" className="tv-root" data-mantine-color-scheme={appearance.scheme} style={appearance.vars}>
     <Group component="header" className="tv-header" justify="space-between" wrap="nowrap" gap="2em">
@@ -95,22 +102,11 @@ export function TvView({ initial }: { initial: PublicTournament }) {
     <Box className="tv-grid">
       <Stack component="section" aria-labelledby="tv-courts" gap="0.8em" className="tv-column">
         <h2 id="tv-courts" className="tv-heading">Sur les terrains</h2>
-        <Stack gap="0.5em">{courts.map((row) => <Paper key={row.courtId} withBorder className="tv-court" data-state={row.state}>
-          <span className="tv-court-name">{name(row.courtId)}</span>
-          {row.match ? <>
-            <span className="tv-chip" data-state={row.state}>{row.state === 'live' ? 'En cours' : time(row.match.starts_at)}</span>
-            {teams(row.match)}
-            <span className="tv-dim tv-pool">{group(row.match)}</span>
-          </> : <span className="tv-dim">Libre</span>}
+        <Stack gap="0.5em" className="tv-courts-list" style={{ fontSize: `${Math.min(1, 5 / Math.max(1, courts.length))}em` }}>{courts.map((row) => <Paper key={row.courtId} component="section" aria-label={name(row.courtId)} withBorder className="tv-court" data-state={row.current ? 'live' : row.next ? 'next' : 'idle'}>
+          <h3 className="tv-court-name">{name(row.courtId)}</h3>
+          {courtMatch(row.current, true)}
+          {courtMatch(row.next, false)}
         </Paper>)}</Stack>
-        {upcoming.length ? <>
-          <h2 className="tv-heading tv-heading-small">À suivre</h2>
-          <Stack gap="0.35em">{upcoming.map((match) => <Group key={match.id} className="tv-line" wrap="nowrap" gap="0.8em">
-            <span className="tv-time">{time(match.starts_at)}</span>
-            <span className="tv-dim tv-court-small">{name(match.court_id)}</span>
-            {teams(match)}
-          </Group>)}</Stack>
-        </> : null}
       </Stack>
 
       {snapshot.placement.ranking ? <Stack component="section" aria-labelledby="tv-final" gap="0.8em" className="tv-column">

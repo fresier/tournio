@@ -50,6 +50,7 @@ try {
   }
   if(!ready)throw new Error('Le serveur Next.js de test ne démarre pas.');
   run('npm',['run','test:integration'],env);
+  run('npm',['run','test:managers'],env);
   run('npm',['run','test:placement'],env);
   run('npm',['run','test:google'],env);
   run('npm',['run','test:realtime'],env);

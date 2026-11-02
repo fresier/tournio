@@ -18,7 +18,7 @@ Production : `https://tourn.rfonline.be` (Coolify). Marque affichée sur l’éc
 - Mobile-first pour les participants ; le dashboard organisateur est utilisable sur ordinateur, tablette et téléphone, au bord du terrain.
 - Interface en français.
 - Aucune authentification pour consulter un tournoi publié ; connexion Google uniquement pour les organisateurs.
-- Toute mutation est contrôlée côté serveur (propriétaire, origine, version, état), jamais seulement dans l’interface.
+- Toute mutation est contrôlée côté serveur (droits sur le tournoi, origine, version lorsque nécessaire, état), jamais seulement dans l’interface.
 - Mises à jour en direct, avec fonctionnement dégradé en cas de perte de connexion.
 - Score numérique simple, sans figer un sport.
 - Accessibilité WCAG 2.1 AA vérifiée automatiquement.
@@ -29,7 +29,7 @@ Production : `https://tourn.rfonline.be` (Coolify). Marque affichée sur l’éc
 
 ### Réalisé
 
-1. Connexion des organisateurs par Google ; isolation stricte entre organisateurs.
+1. Connexion des organisateurs par Google ; accès limité aux tournois créés ou explicitement partagés.
 2. Création et configuration d’un tournoi : informations, apparence, équipes, poules, terrains, format, règles.
 3. Répartition des équipes en poules : manuelle (glisser-déposer ou sélecteur), tirage au sort, équipes de test.
 4. Terrains disponibles par défaut sur toute la période ; saisie des seules indisponibilités.
@@ -42,11 +42,12 @@ Production : `https://tourn.rfonline.be` (Coolify). Marque affichée sur l’éc
 11. Thèmes et couleurs par tournoi, appliqués aux pages publiques, à la TV et au dashboard du tournoi.
 12. Mises à jour en direct (SSE), polling de secours, rechargement automatique après un déploiement.
 13. Démonstration temps réel publique (`/demo`) avec QR code.
+14. Partage de la gestion par adresse Google vérifiée, y compris avant la première connexion ; retrait d’accès par le propriétaire.
 
 ### Hors périmètre actuel
 
 - Notifications push, SMS, e-mail (idée validée, reportée).
-- Plusieurs organisateurs par tournoi, interface arbitre.
+- Interface arbitre.
 - Décalage automatique de tous les matchs après un retard.
 - Scores par set, tie-breaks spécifiques à une discipline, forfaits.
 - Inscriptions publiques, paiements, statistiques historiques.
@@ -56,18 +57,18 @@ Production : `https://tourn.rfonline.be` (Coolify). Marque affichée sur l’éc
 
 ## 3. Rôles et droits
 
-| Action | Visiteur / équipe | Organisateur propriétaire |
-| --- | --- | --- |
-| Voir un tournoi publié, une page équipe, l’écran TV | Oui | Oui |
-| Choisir et suivre une équipe | Oui | Oui |
-| Créer, configurer un tournoi | Non | Oui |
-| Générer, déplacer, publier le calendrier | Non | Oui |
-| Saisir, corriger un score ; lancer un tour | Non | Oui |
-| Terminer, archiver un tournoi | Non | Oui |
+| Action | Visiteur / équipe | Propriétaire | Gestionnaire autorisé |
+| --- | --- | --- | --- |
+| Voir un tournoi publié, une page équipe, l’écran TV | Oui | Oui | Oui |
+| Choisir et suivre une équipe | Oui | Oui | Oui |
+| Créer un tournoi | Non | Oui | Oui, pour son propre compte |
+| Configurer, gérer le calendrier et les résultats du tournoi partagé | Non | Oui | Oui |
+| Terminer ou archiver le tournoi partagé | Non | Oui | Oui |
+| Ajouter ou retirer des gestionnaires | Non | Oui | Non |
 
 - Un brouillon n’est jamais public : il répond comme un tournoi inexistant (404).
 - Les liens publics et les QR codes ne donnent aucun droit d’écriture et ne contiennent aucune donnée personnelle.
-- Un organisateur ne voit ni ne modifie les tournois d’un autre (404 sur toute ressource étrangère).
+- Un organisateur ne voit ni ne modifie un tournoi d’autrui sans autorisation (404). Le propriétaire gère jusqu’à 50 accès par adresse vérifiée, y compris après archivage ; le contenu archivé reste en lecture seule. Aucun e-mail d’invitation n’est envoyé.
 
 ---
 
@@ -85,7 +86,7 @@ Le dashboard d’un tournoi suit l’ordre du travail, en sept onglets (gardés 
 | **Format et règles** | Format après les poules, puis règles | format choisi et compatible |
 | **Calendrier** | Prévisualisation, enregistrement, publication, déplacements, archivage | tournoi publié |
 | **Résultats** | Saisie par créneau, phase de classement, fin du tournoi | tournoi terminé |
-| **Partage** | Lien public, QR code, écran TV | — |
+| **Partage** | Gestionnaires, lien public, QR code, écran TV | — |
 
 Au-dessus des onglets : quatre indicateurs cliquables (matchs joués, équipes placées, poules, terrains et heures de créneaux), avec les points à régler en orange. Les retours d’action s’affichent en **notifications** (en haut à droite) ; les erreurs propres à un champ restent sous le champ.
 
@@ -120,7 +121,7 @@ Ouvrir l’écran TV (`/t/:slug/tv`) sur l’ordinateur relié à la télévisio
 **Page équipe.** Carte « Prochain match » (en cours, prévu, reporté). Si l’équipe a fini ses matchs de poule et que la phase de classement n’est pas encore générée : « Phase de classement à venir — encore N matchs ; l’adversaire, le terrain et l’horaire seront annoncés à la fin des poules / du tour N ». « Plus aucun match prévu » seulement quand c’est vrai.
 
 **Écran TV.** Sans défilement, taille de texte proportionnelle à l’écran (conçu pour 1920×1080, valable en 720p et 4K). Trois colonnes :
-- *Sur les terrains* : un terrain par ligne (en cours, prochain, ou libre), puis *À suivre* ;
+- *Sur les terrains* : une fiche par terrain, avec son match *En cours* et son prochain match *À suivre* (ou « Libre » / « Aucun match prévu ») ;
 - *Classements* en rotation automatique (toutes les 12 s), ou les matchs du tour de classement en cours, ou le classement final ;
 - *Derniers résultats*, QR code vers la page publique, puis la marque « tournio. by rfonline ».
 En-tête : nom du tournoi, horloge dans le fuseau du tournoi, état de connexion, bouton plein écran. L’écran est maintenu allumé (Wake Lock) quand le navigateur le permet.
@@ -130,6 +131,7 @@ En-tête : nom du tournoi, horloge dans le fuseau du tournoi, état de connexion
 | Route | Contenu |
 | --- | --- |
 | `/dashboard` | Mes tournois |
+| `/dashboard/guide` | Guide du gestionnaire, accessible depuis le menu latéral, avec sommaire et tableaux |
 | `/dashboard/tournaments/new` | Création (nom, sport, lien public, lieu, fuseau, début, fin) |
 | `/dashboard/tournaments/:id` | Configuration et suivi, en onglets |
 
@@ -252,6 +254,7 @@ Le format reste modifiable après publication, tant que la phase de classement n
 
 - **User, Session, Account, Verification** (Better Auth).
 - **Tournament** : `id`, `owner_id`, `name`, `slug` (unique), `sport`, `location`, `timezone`, `starts_at`, `ends_at`, `status`, `published_at`, `theme`, `primary_color`, `accent_color`, `version`, dates.
+- **TournamentManager** : tournoi et adresse e-mail normalisée autorisée par son propriétaire, unique par tournoi.
 - **TournamentRules** : `match_duration_minutes`, `transition_minutes`, `minimum_rest_minutes`, `allow_draw`, `aligned_slots`, `points_win`, `points_draw`, `points_loss`, `tie_break_order`, `final_format` (null tant que non choisi), `round_break_minutes`, `allow_incomplete`.
 - **Team** : `id`, `tournament_id`, `name`, `slug` (unique dans le tournoi).
 - **Pool**, **PoolTeam** (une poule au plus par équipe).
@@ -273,11 +276,12 @@ Contraintes en base : références au même tournoi, équipes distinctes, scores
 ### Organisateur (session + contrôle d’origine)
 
 - `GET|POST /admin/tournaments` ; `GET|PATCH /admin/tournaments/:id` (commandes de configuration : informations, règles, équipes, équipes en lot, poules, tirage au sort, terrains, disponibilités et indisponibilités, apparence, format).
+- `GET|POST|DELETE /admin/tournaments/:id/managers` : rôle et accès des gestionnaires ; seul le propriétaire voit la liste des adresses et peut la modifier.
 - `GET|POST /admin/tournaments/:id/schedule` (prévisualisation ; générer, effacer, déplacer, publier, générer / annuler un tour de classement, terminer, archiver).
 - `POST /admin/tournaments/:id/matches` (lancement groupé) ; `POST /admin/tournaments/:id/matches/:matchId` (état et résultat d’un match).
 - `GET /health` — sonde de santé (200 si PostgreSQL répond, 503 sinon).
 
-Chaque écriture porte une **version attendue** (tournoi, ou match pour les résultats) : une version périmée est refusée (409). Erreurs : `{ error: { code, message, fieldErrors?, requestId } }` ; 400, 401, 403 (origine), 404, 409, 422, 503. Détail : `docs/api/organisation.md`.
+Les écritures de configuration, calendrier et résultats portent une **version attendue** (tournoi ou match) : une version périmée est refusée (409). Les changements d’accès, indépendants de ces versions, sont sérialisés sous le verrou du tournoi. Erreurs : `{ error: { code, message, fieldErrors?, requestId } }` ; 400, 401, 403 (origine), 404, 409, 422, 503. Détail : `docs/api/organisation.md`.
 
 ---
 
@@ -305,7 +309,7 @@ Chaque écriture porte une **version attendue** (tournoi, ou match pour les rés
 
 ## 14. Sécurité, confidentialité, accessibilité
 
-- Contrôle propriétaire sur chaque route et chaque ressource enfant ; contrôle d’origine (CSRF) sur toutes les écritures.
+- Contrôle du propriétaire ou du gestionnaire autorisé sur chaque route et chaque ressource enfant ; contrôle d’origine (CSRF) sur toutes les écritures.
 - Limitation de débit Better Auth ; journalisation sans données sensibles.
 - En-têtes : HSTS, `nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`, `Permissions-Policy`.
 - Aucune donnée personnelle de participant publiée ; instantané public en liste blanche.
@@ -342,7 +346,7 @@ Chaque écriture porte une **version attendue** (tournoi, ou match pour les rés
 5. Un participant retrouve son équipe et son prochain match ; il est prévenu des matchs de classement à venir.
 6. Un score saisi apparaît en direct sur les téléphones et la TV, ou par polling en cas de coupure.
 7. La phase de classement fait jouer à chaque équipe le même nombre de matchs et produit un classement final complet.
-8. Un visiteur ne peut rien modifier ; deux organisateurs ne peuvent pas modifier les tournois l’un de l’autre.
+8. Un visiteur ne peut rien modifier ; un organisateur ne peut gérer un tournoi d’autrui que si son propriétaire l’y a autorisé.
 9. L’application est accessible (WCAG 2.1 AA) et utilisable au clavier.
 
 ---
@@ -360,4 +364,4 @@ Chaque écriture porte une **version attendue** (tournoi, ou match pour les rés
 - Notifications push aux appareils qui suivent une équipe.
 - Aller-retour optionnel quand deux équipes restent seules en « un match par rang ».
 - Décalage automatique des matchs après un retard ; forfaits.
-- Plusieurs organisateurs, rôle arbitre.
+- Rôle arbitre.

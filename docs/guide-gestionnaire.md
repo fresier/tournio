@@ -28,7 +28,9 @@ Ce guide s’adresse à la personne qui prépare et gère un tournoi dans Tourni
 2. Si nécessaire, cliquez sur **Continuer avec Google** et connectez-vous.
 3. Dans **Mes tournois**, créez un tournoi ou cliquez sur **Configurer** pour reprendre un tournoi existant.
 
-La première connexion crée votre compte organisateur. Utilisez ensuite le même compte Google pour retrouver vos tournois. Chaque tournoi appartient à son créateur : la gestion à plusieurs organisateurs et le rôle d’arbitre ne sont pas disponibles actuellement.
+La première connexion crée votre compte organisateur. Utilisez ensuite le même compte Google pour retrouver vos tournois. Le créateur peut aussi autoriser d’autres personnes à gérer un tournoi ; elles y accèdent avec leur propre compte. Le rôle d’arbitre n’est pas disponible actuellement.
+
+Sur ordinateur, le bouton en haut du menu de gauche permet de **réduire le menu** pour gagner de la place, puis de l’agrandir à nouveau. Les icônes restent accessibles et le choix est mémorisé sur l’appareil. Sur téléphone, utilisez le bouton de menu en haut de l’écran.
 
 Le tableau de bord d’un tournoi suit l’ordre de préparation en sept onglets :
 
@@ -40,7 +42,7 @@ Le tableau de bord d’un tournoi suit l’ordre de préparation en sept onglets
 | **Format et règles** | Choisir la suite des poules, les durées et le barème. |
 | **Calendrier** | Prévisualiser, enregistrer, publier et déplacer les matchs ; archiver le tournoi. |
 | **Résultats** | Lancer les matchs, saisir les scores, générer les tours de classement et terminer le tournoi. |
-| **Partage** | Retrouver le lien public, le QR code et l’écran TV. |
+| **Partage** | Gérer les accès des gestionnaires et retrouver le lien public, le QR code et l’écran TV. |
 
 Les coches ✓ signalent les étapes complétées. Les indicateurs en haut de page sont cliquables ; les points à régler apparaissent en orange. Après une action, vérifiez la notification de confirmation en haut à droite. Les erreurs de saisie apparaissent sous les champs concernés.
 
@@ -68,6 +70,8 @@ Dans **Paramètres**, vous pouvez ensuite :
 - modifier les informations, puis cliquer sur **Enregistrer les informations** ;
 - choisir l’un des huit thèmes : Tournio, Sable, Forêt, Océan, Contraste élevé, Nuit, Halloween ou Stade ;
 - personnaliser les couleurs principale et d’accent et vérifier l’aperçu avant d’enregistrer l’apparence.
+
+La liste **Éléments personnalisables** indique ce que modifie chaque réglage : le thème définit le fond, les cartes et le texte ; la couleur principale s’applique notamment au bandeau et aux boutons ; la couleur d’accent met en valeur les scores et les titres de l’écran TV.
 
 L’apparence s’applique au tableau de bord du tournoi, aux pages publiques et à la TV. Vous pouvez encore la modifier après publication, jusqu’à l’archivage.
 
@@ -200,7 +204,7 @@ Avant de publier, contrôlez :
 - le format enregistré et la place disponible pour les matchs de classement ;
 - les horaires et les terrains du calendrier enregistré.
 
-Cliquez sur **Publier le tournoi** et confirmez. Le tournoi devient consultable sans compte ; la saisie des résultats et les outils de partage deviennent disponibles.
+Cliquez sur **Publier le tournoi** et confirmez. Le tournoi devient consultable sans compte ; la saisie des résultats et les outils de partage public deviennent disponibles.
 
 **Après publication, vous ne pouvez plus supprimer ni régénérer le calendrier pour reprendre la configuration.** Les déplacements de matchs restent possibles dans les conditions ci-dessous.
 
@@ -211,6 +215,19 @@ Dans le calendrier enregistré, ouvrez **Déplacer** sous un match prévu ou rep
 Tournio vérifie la disponibilité du terrain, la transition, le repos des équipes et l’absence de chevauchement. Un déplacement refusé laisse le calendrier précédent en place. Un match reporté replanifié repasse à l’état **Prévu**.
 
 ## 7. Partager le tournoi et installer la TV
+
+### Partager la gestion avec une autre personne
+
+Le propriétaire peut autoriser jusqu’à 50 personnes à gérer son tournoi, même lorsqu’il est encore en brouillon :
+
+1. Dans **Partage**, repérez **Gestionnaires du tournoi**.
+2. Saisissez l’adresse du compte Google de la personne et cliquez sur **Ajouter l’accès**.
+3. Prévenez la personne et transmettez-lui le lien de l’espace organisateur à l’aide du bouton prévu. Aucun e-mail automatique n’est envoyé.
+4. La personne se connecte avec ce compte Google ; le tournoi apparaît dans **Mes tournois**, avec la mention **Partagé avec vous**. Si elle n’a pas encore de compte Tournio, sa première connexion suffit.
+
+L’adresse du compte doit être vérifiée et correspondre à celle saisie. Les gestionnaires peuvent configurer le tournoi, gérer le calendrier et les scores, le terminer ou l’archiver, dans les mêmes limites liées à son état que le propriétaire. Seul le propriétaire peut ajouter ou retirer des accès.
+
+Pour retirer un accès, cliquez sur **Retirer l’accès** à côté de l’adresse et confirmez. La personne ne pourra plus consulter ni modifier ce tournoi dans l’espace organisateur ; les autres gestionnaires conservent leur accès. Les liens publics restent consultables par tous après publication. Le propriétaire peut aussi gérer les accès d’un tournoi archivé, qui reste en lecture seule pour les personnes autorisées.
 
 ### Donner accès aux équipes
 
@@ -231,7 +248,7 @@ Le choix d’équipe est mémorisé sur leur appareil lorsque le navigateur le p
 2. Depuis **Partage**, cliquez sur **Ouvrir l’écran TV**, ou ouvrez le lien TV sur cet ordinateur.
 3. Passez en plein écran avec le bouton de la page.
 
-La TV est conçue pour un écran 16:9. Elle affiche les terrains, les matchs à suivre, les classements et les derniers résultats sans défilement. Les classements de poule tournent automatiquement toutes les 12 secondes. Le QR code renvoie à la page publique.
+La TV est conçue pour un écran 16:9. Chaque terrain garde sa propre fiche avec deux lignes : **En cours** pour le match qui se joue et **À suivre** pour le prochain match prévu sur ce même terrain. Sans rencontre en cours, la fiche indique **Libre** ; sans rencontre suivante, elle indique **Aucun match prévu**. Les classements et les derniers résultats s’affichent dans les autres colonnes, sans défilement. Les classements de poule tournent automatiquement toutes les 12 secondes. Le QR code renvoie à la page publique.
 
 L’heure affichée suit le fuseau du tournoi. Le navigateur essaie de maintenir l’écran allumé lorsqu’il le permet ; vérifiez aussi les réglages de veille de l’ordinateur et du téléviseur.
 
@@ -332,7 +349,7 @@ Le tournoi passe à **Terminé**. Vous ne pouvez plus jouer de nouvelles rencont
 
 Après votre dernière vérification, ouvrez **Calendrier**, cliquez sur **Archiver le tournoi** et confirmez.
 
-**L’archivage rend tout le tournoi non modifiable**, y compris les scores, les noms et l’apparence. L’application ne propose pas de retour à un état modifiable. Les pages publiques restent accessibles.
+**L’archivage rend le contenu du tournoi non modifiable**, y compris les scores, les noms et l’apparence. Le propriétaire peut toujours gérer les accès des gestionnaires. L’application ne propose pas de retour à un état modifiable. Les pages publiques restent accessibles.
 
 Le bouton d’archivage est également disponible sur un tournoi publié qui n’est pas encore terminé. Pour clôturer normalement un tournoi, terminez-le d’abord ; archiver directement bloque aussi la saisie des rencontres restantes.
 
@@ -348,6 +365,7 @@ Le bouton d’archivage est également disponible sur un tournoi publié qui n�
 | Déplacer un match prévu ou reporté | En brouillon ou après publication, avant la fin du tournoi, si le déplacement respecte les contraintes. |
 | Saisir les premiers résultats, lancer ou reporter des matchs | Après publication et avant la fin du tournoi, sous réserve des verrous de classement. |
 | Corriger un résultat terminé | Après publication, y compris après la fin du tournoi, avant archivage et sous réserve des verrous de classement. |
+| Ajouter ou retirer un gestionnaire | Seul le propriétaire peut gérer les accès, y compris pour un tournoi archivé. |
 
 ## 12. Résoudre les difficultés courantes
 

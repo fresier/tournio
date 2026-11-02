@@ -10,6 +10,7 @@ export type SnapshotSource = {
   name: string; slug: string; sport: string; location: string; timezone: string;
   starts_at: Date | string; ends_at: Date | string; status: string; version: number;
   theme?: string; primary_color?: string | null; accent_color?: string | null;
+  background_color?: string | null; surface_color?: string | null; text_color?: string | null;
   rules: { allow_draw: boolean; points_win: number; points_draw: number; points_loss: number; tie_break_order: string[]; final_format?: string | null } | null;
   pools: { id: string; name: string }[];
   teams: { id: string; name: string; slug: string }[];
@@ -40,6 +41,7 @@ export function publicSnapshot(source: SnapshotSource): PublicTournament {
       name: source.name, slug: source.slug, sport: source.sport, location: source.location, timezone: source.timezone,
       starts_at: iso(source.starts_at), ends_at: iso(source.ends_at), status: source.status, version: source.version,
       theme: source.theme ?? 'tournio', primary_color: source.primary_color ?? null, accent_color: source.accent_color ?? null,
+      background_color: source.background_color ?? null, surface_color: source.surface_color ?? null, text_color: source.text_color ?? null,
     },
     pools: source.pools.map(({ id, name }) => ({ id, name })),
     teams: source.teams.map(({ id, name, slug }) => ({ id, name, slug, pool_id: poolOf.get(id) ?? null })),

@@ -20,6 +20,7 @@
     "test:seed": "node --import tsx scripts/test-seed.ts",
     "test:unit": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx scripts/check-business.ts",
+    "test:managers": "node --import tsx scripts/check-managers.ts",
     "test:placement": "node --import tsx scripts/check-placement.ts",
     "test:realtime": "node --import tsx scripts/check-realtime.ts",
     "test:google": "node --import tsx scripts/check-google.ts",
@@ -43,6 +44,9 @@
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-markdown": "10.1.0",
+    "rehype-slug": "6.0.0",
+    "remark-gfm": "4.0.1",
     "server-only": "0.0.1",
     "zod": "4.6.7"
   },

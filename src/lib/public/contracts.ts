@@ -21,6 +21,7 @@ export const publicTournamentSchema = z.strictObject({
     name: z.string(), slug: z.string(), sport: z.string(), location: z.string(), timezone: z.string(),
     starts_at: z.string(), ends_at: z.string(), status: z.enum(['PUBLISHED', 'COMPLETED', 'ARCHIVED']), version: z.number().int(),
     theme: z.string(), primary_color: z.string().nullable(), accent_color: z.string().nullable(),
+    background_color: z.string().nullable().optional(), surface_color: z.string().nullable().optional(), text_color: z.string().nullable().optional(),
   }),
   pools: z.array(z.strictObject({ id, name: z.string() })),
   teams: z.array(z.strictObject({ id, name: z.string(), slug: z.string(), pool_id: id.nullable() })),

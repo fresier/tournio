@@ -41,10 +41,11 @@ Le dashboard propose :
 - Ajout, modification et suppression des poules et des terrains.
 - Disponibilités des terrains, avec refus des chevauchements et horaires hors tournoi.
 - Durée des matchs, transition, repos, barème et autorisation des matchs nuls.
+- Partage de la gestion avec d’autres comptes Google, par adresse vérifiée ; ajout et retrait des accès réservés au propriétaire.
 
 Les heures saisies sont interprétées dans le fuseau du tournoi et stockées comme instants UTC. Une heure inexistante est refusée ; une heure ambiguë exige un décalage UTC explicite.
 
-Chaque mutation vérifie la session Better Auth, la propriété de toutes les ressources et la version du tournoi. Les opérations sont transactionnelles sous verrou du tournoi. Les clés étrangères composites et les contraintes SQL garantissent l’intégrité entre tournois, poules, équipes et matchs.
+Chaque mutation vérifie la session Better Auth, les droits sur le tournoi et ses ressources, ainsi que la version du tournoi ou du match lorsqu’elle s’applique. Les opérations sont transactionnelles sous verrou du tournoi. Les clés étrangères composites et les contraintes SQL garantissent l’intégrité entre tournois, poules, équipes et matchs.
 
 Le scénario de tests isolés fournit un brouillon de **12 équipes, 3 poules de 4 et 3 terrains**, avec disponibilités et règles. Ces fixtures sont créées uniquement dans sa base PostgreSQL jetable.
 

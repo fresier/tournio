@@ -81,7 +81,7 @@ function softened(text: string, surface: string, minimum: number) {
   return text;
 }
 
-export type Appearance = { theme?: string | null; primary_color: string | null; accent_color: string | null };
+export type Appearance = { theme?: string | null; primary_color: string | null; accent_color: string | null; background_color?: string | null; surface_color?: string | null; text_color?: string | null };
 export type ResolvedAppearance = { scheme: 'light' | 'dark'; vars: Record<string, string>; primary: string; accent: string; background: string; surface: string; text: string };
 
 /**
@@ -89,11 +89,13 @@ export type ResolvedAppearance = { scheme: 'light' | 'dark'; vars: Record<string
  * elles remplacent la couleur principale Mantine (« ink »), les couleurs de surface et de texte du schéma,
  * et l’accent de Tournio pour tout ce qui est rendu à l’intérieur.
  */
-export function resolveAppearance({ theme, primary_color, accent_color }: Appearance): ResolvedAppearance {
+export function resolveAppearance({ theme, primary_color, accent_color, background_color, surface_color, text_color }: Appearance): ResolvedAppearance {
   const preset = themePreset(theme);
   const primary = primary_color ?? preset.primary;
   const accent = accent_color ?? preset.accent;
-  const { surface, text, scheme } = preset;
+  const { scheme } = preset;
+  const surface = surface_color ?? preset.surface;
+  const text = text_color ?? preset.text;
   const shades = palette(primary);
   // Bouton plein : couleur exacte avec texte blanc si possible ; sinon couleur exacte avec texte noir
   // (une couleur vive comme l’orange) ; à défaut, nuance assombrie avec texte blanc.
@@ -106,7 +108,7 @@ export function resolveAppearance({ theme, primary_color, accent_color }: Appear
   // Fond des variantes « light » : très clair en thème clair, à peine teinté en thème sombre.
   const lightBg = scheme === 'dark' ? mix(primary, surface, 0.82) : shades[0];
   const lightHover = scheme === 'dark' ? mix(primary, surface, 0.74) : shades[1];
-  const background = preset.background ?? shades[0];
+  const background = background_color ?? preset.background ?? shades[0];
   const sidebar = scheme === 'dark' ? mix(surface, primary, 0.08) : mix(background, primary, 0.04);
   // Les textes sont choisis pour le fond le plus défavorable : cartes, page, barre latérale, fond « light ».
   const grounds = [surface, background, sidebar, lightBg];
@@ -140,6 +142,22 @@ export function resolveAppearance({ theme, primary_color, accent_color }: Appear
       .forEach((value, index) => { vars[`--mantine-color-dark-${index}`] = value; });
   }
   return { scheme, vars, primary, accent, background, surface, text };
+}
+
+/** Contrôle les couleurs personnalisées sur les surfaces réellement utilisées par l’interface. */
+export function customThemeProblem(appearance: Appearance): string | null {
+  const custom = [appearance.background_color, appearance.surface_color, appearance.text_color];
+  if (custom.every((color) => color == null)) return null;
+  if (custom.some((color) => color == null)) return 'Le fond, les cartes et le texte doivent être définis ensemble.';
+  const { scheme, text, surface, background, vars } = resolveAppearance(appearance);
+  const light = (color: string) => contrast(color, '#000000') >= contrast(color, '#ffffff');
+  if ([surface, background].some((color) => light(color) !== (scheme === 'light'))) return 'Le fond et les cartes doivent être clairs pour un thème clair, ou sombres pour un thème sombre.';
+  const grounds = [surface, background, vars['--tournio-sidebar'], vars['--mantine-color-ink-light']];
+  if (grounds.some((ground) => contrast(text, ground) < 4.5)) return 'Le texte doit être suffisamment contrasté avec le fond et les cartes.';
+  for (const foreground of [vars['--mantine-color-dimmed'], vars['--mantine-color-anchor'], vars['--tournio-accent']]) {
+    if (grounds.some((ground) => contrast(foreground, ground) < 4.5)) return 'Ces couleurs ne permettent pas de garder les liens, les scores ou le texte secondaire lisibles sur toutes les surfaces.';
+  }
+  return null;
 }
 
 /** Compatibilité : variables seules. */

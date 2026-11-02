@@ -4,10 +4,15 @@ Toutes les réponses sont JSON et `Cache-Control: no-store`. Les lectures et mut
 
 | Route | Action | Réponse |
 | --- | --- | --- |
-| `GET /api/v1/admin/tournaments` | Tournois du propriétaire connecté | `{ tournaments: [...] }` |
+| `GET /api/v1/admin/tournaments` | Tournois possédés ou partagés avec le compte connecté | `{ tournaments: [...] }` avec `access_role` : `owner` ou `manager` |
 | `POST /api/v1/admin/tournaments` | Création d’un brouillon avec règles par défaut | 201 `{ configuration: ... }` |
-| `GET /api/v1/admin/tournaments/:id` | Configuration complète d’un tournoi du propriétaire | `{ configuration: ... }` |
+| `GET /api/v1/admin/tournaments/:id` | Configuration complète d’un tournoi accessible | `{ configuration: ... }` |
 | `PATCH /api/v1/admin/tournaments/:id` | Modification transactionnelle de configuration | `{ configuration: ... }` |
+| `GET /api/v1/admin/tournaments/:id/managers` | Rôle de l’utilisateur ; liste des accès pour le propriétaire uniquement | `{ access: { role, managers } }` |
+| `POST /api/v1/admin/tournaments/:id/managers` | Autoriser une adresse (propriétaire uniquement) | `{ access: { role, managers } }` |
+| `DELETE /api/v1/admin/tournaments/:id/managers` | Retirer l’autorisation d’une adresse (propriétaire uniquement) | `{ access: { role, managers } }` |
+
+Les écritures de gestion des accès prennent `{ email }` et sont sérialisées sous le verrou du tournoi, sans modifier sa version. L’adresse est normalisée et unique par tournoi (50 accès maximum). Elle peut être ajoutée avant la création du compte ; l’accès est accordé uniquement si l’adresse du compte connecté est vérifiée et correspond. Les gestionnaires reçoivent une liste vide pour ne pas exposer les autres adresses. La révocation est revérifiée après acquisition du verrou avant toute écriture concurrente. Aucun e-mail n’est envoyé. La gestion des accès reste disponible pour le propriétaire après archivage.
 
 Création et opération `update_tournament` : `name`, `slug`, `sport`, `location`, `timezone`, `starts_at`, `ends_at`. Les dates sont ISO 8601 avec décalage explicite. `owner_id`, statut, version et dates de publication ne peuvent pas être définis par le client.
 
@@ -74,7 +79,7 @@ Verrous : dès le tour 1, les matchs de poule sont figés ; un tour est figé d�
 
 `POST /api/v1/admin/tournaments/:id/matches` avec `{ matches: [{ id, expected_version }] }` (1 à 32) lance plusieurs matchs prévus d’un coup, typiquement tout un créneau : tout ou rien (409 si l’un est périmé ou n’est plus prévu), une seule version de tournoi donc une seule mise à jour publique. L’onglet Résultats regroupe les matchs par créneau et propose « Lancer les N matchs ».
 
-`POST /api/v1/admin/tournaments/:id/matches/:matchId` : `{ operation, expected_version, payload }`, où `expected_version` est la **version du match**. Deux matchs différents peuvent donc être saisis en parallèle ; une double soumission ou une correction concurrente du même match reçoit 409. Chaque commande verrouille le tournoi, contrôle propriétaire, état et nuls, incrémente la version du match et celle du tournoi (ordre des instantanés publics). La notification publique part au commit. Réponse `{ configuration }`.
+`POST /api/v1/admin/tournaments/:id/matches/:matchId` : `{ operation, expected_version, payload }`, où `expected_version` est la **version du match**. Deux matchs différents peuvent donc être saisis en parallèle ; une double soumission ou une correction concurrente du même match reçoit 409. Chaque commande verrouille le tournoi, contrôle les droits, l’état et les nuls, incrémente la version du match et celle du tournoi (ordre des instantanés publics). La notification publique part au commit. Réponse `{ configuration }`.
 
 - `start` `{}` : prévu → en cours.
 - `reset` `{}` : en cours → prévu.
@@ -101,7 +106,7 @@ Erreurs : `{ error: { code, message, fieldErrors?, requestId } }`.
 - 400 : JSON invalide.
 - 401 : session absente ou révoquée.
 - 403 : origine refusée.
-- 404 : ressource absente, d’un autre propriétaire ou enfant d’un autre tournoi.
+- 404 : ressource absente, tournoi sans autorisation ou enfant d’un autre tournoi.
 - 409 : version périmée, doublon, configuration verrouillée, régénération refusée ou tournoi archivé.
 - 422 : validation de champs, disponibilité invalide, référence incohérente, calendrier impossible ou déplacement en conflit.
 - 503 : service/base indisponible.

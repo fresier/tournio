@@ -1,0 +1,63 @@
+.guide {
+  max-width: 84ch;
+  min-width: 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.guide h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1.2;
+}
+
+.guide h2,
+.guide h3 {
+  scroll-margin-top: calc(var(--app-shell-header-height, 0rem) + 1.5rem);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.guide h2 {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  padding-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.guide h3 { font-size: 1.125rem; }
+.guide p { margin: 0.75rem 0; }
+.guide ul,
+.guide ol { padding-left: 1.5rem; }
+.guide li + li { margin-top: 0.4rem; }
+.guide a { color: var(--mantine-color-anchor); text-underline-offset: 0.2em; }
+.guide a:hover { text-decoration-thickness: 2px; }
+.guide code { font-size: 0.9em; }
+.guide input[type='checkbox'] { margin-right: 0.5rem; }
+.guide li:has(input[type='checkbox']) { list-style: none; }
+
+.tableScroll {
+  overflow-x: auto;
+  margin: 1.25rem 0;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+}
+
+.guide table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.guide th,
+.guide td {
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.guide th { background: var(--mantine-color-ink-0); }
+.guide tbody tr:last-child td { border-bottom: 0; }
